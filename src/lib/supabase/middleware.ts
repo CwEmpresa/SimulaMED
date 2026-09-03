@@ -1,0 +1,71 @@
+import { createServerClient } from '@supabase/ssr'
+import { NextResponse, type NextRequest } from 'next/server'
+
+import type { Database } from './types'
+
+/**
+ * Rotas que não exigem sessão.
+ *
+ * `/dev` só entra na lista fora de produção — é a terceira guarda do login por
+ * senha, junto com a da página e a da server action.
+ */
+const ROTAS_PUBLICAS = [
+  '/login',
+  '/auth',
+  ...(process.env.NODE_ENV !== 'production' ? ['/dev'] : []),
+]
+
+/**
+ * Renova o cookie de sessão a cada request e barra acesso não autenticado.
+ *
+ * A ordem das operações aqui é sensível: o objeto de resposta precisa ser
+ * recriado a partir do request depois que os cookies são atualizados, senão a
+ * sessão renovada não chega ao browser e o usuário é deslogado silenciosamente.
+ */
+export async function updateSession(request: NextRequest) {
+  let supabaseResponse = NextResponse.next({ request })
+
+  const supabase = createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+          supabaseResponse = NextResponse.next({ request })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options),
+          )
+        },
+      },
+    },
+  )
+
+  // getUser() revalida o token no servidor Supabase — não trocar por getSession(),
+  // que apenas lê o cookie e pode ser forjado.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const { pathname } = request.nextUrl
+  const ehPublica = ROTAS_PUBLICAS.some((rota) => pathname.startsWith(rota))
+
+  if (!user && !ehPublica) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    url.searchParams.set('redirect', pathname)
+    return NextResponse.redirect(url)
+  }
+
+  if (user && pathname === '/login') {
+    const url = request.nextUrl.clone()
+    url.pathname = '/dashboard'
+    url.search = ''
+    return NextResponse.redirect(url)
+  }
+
+  return supabaseResponse
+}

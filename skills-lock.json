@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "review-delta": {
+      "source": "tirth8205/code-review-graph",
+      "sourceType": "github",
+      "skillPath": "skills/review-delta/SKILL.md",
+      "computedHash": "39ccdc23a36b234bcd9d10bcd7dda377cdde04ad6618fda317f7dbdefc2976d4"
+    }
+  }
+}

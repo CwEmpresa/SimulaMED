@@ -1,14 +1,23 @@
 {
-  "name": "app-scaffold",
+  "name": "reta-final-enamed",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "import:questoes": "tsx scripts/import-questoes.ts",
+    "verificar:import": "node --env-file=.env.local scripts/verificar-import.mjs",
+    "testar:prova": "node --env-file=.env.local scripts/testar-fluxo-prova.mjs",
+    "testar:banco": "node --env-file=.env.local scripts/testar-banco.mjs",
+    "testar:conta": "node --env-file=.env.local scripts/testar-conta.mjs",
+    "dev:usuario": "node --env-file=.env.local scripts/criar-usuario-dev.mjs"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.5",
+    "@supabase/supabase-js": "^2.114.0",
+    "motion": "^13.2.0",
     "next": "16.3.4",
     "react": "19.2.8",
     "react-dom": "19.2.8"
@@ -18,9 +27,12 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
+    "exceljs": "^4.4.0",
     "tailwindcss": "^4",
+    "tsx": "^4.23.13",
     "typescript": "^5"
   }
 }
