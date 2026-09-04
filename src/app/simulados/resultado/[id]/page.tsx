@@ -4,7 +4,13 @@ import { notFound, redirect } from 'next/navigation'
 import { AvisoConteudo } from '@/components/aviso-conteudo'
 import { CascaApp } from '@/components/casca-app'
 import { IconeCaderno, IconeCronometro, IconeGabarito } from '@/components/ui/icones'
-import { BarraArea, TituloSecao, botaoPrimario, botaoSecundario } from '@/components/ui/primitivos'
+import {
+  BarraArea,
+  CartaoComparativo,
+  TituloSecao,
+  botaoPrimario,
+  botaoSecundario,
+} from '@/components/ui/primitivos'
 import { analisarAreaMaisFraca, formatarListaDeAreas } from '@/lib/diagnostico'
 import { TOTAL_QUESTOES, formatarTempo } from '@/lib/simulado'
 import { createClient } from '@/lib/supabase/server'
@@ -32,7 +38,28 @@ export default async function ResultadoPage({ params }: PageProps<'/simulados/re
     redirect(`/simulados/${tentativa.simulado_numero}/prova`)
   }
 
+  // Outras tentativas finalizadas do MESMO simulado por este aluno — RLS já
+  // restringe à própria linha, então isso nunca vaza nota de outro aluno.
+  // "Sua melhor nota" só faz sentido (e só aparece) quando há mais de uma.
+  const [{ data: outrasTentativas }, { data: mediaSimuladoRaw }] = await Promise.all([
+    supabase
+      .from('tentativas_simulado')
+      .select('nota')
+      .eq('simulado_numero', tentativa.simulado_numero)
+      .eq('status', 'finalizado'),
+    // Agregado apenas — media_simulado é SECURITY DEFINER e nunca devolve
+    // uma linha de tentativa individual, só a média (ver migration 09).
+    supabase.rpc('media_simulado', { p_simulado_numero: tentativa.simulado_numero }),
+  ])
+
   const nota = Number(tentativa.nota ?? 0)
+  const notasDoSimulado = (outrasTentativas ?? []).map((t) => Number(t.nota ?? 0))
+  const melhorNota = notasDoSimulado.length ? Math.max(...notasDoSimulado) : nota
+  const jaFezMaisDeUmaVez = notasDoSimulado.length > 1
+
+  const mediaSimulado = mediaSimuladoRaw === null ? null : Number(mediaSimuladoRaw)
+  const diferencaMedia = mediaSimulado === null ? null : Math.round(nota - mediaSimulado)
+
   const areas = Object.entries(
     (tentativa.percentual_por_area ?? {}) as Record<string, DesempenhoArea>,
   ).sort((a, b) => a[1].percentual - b[1].percentual) // pior primeiro
@@ -44,27 +71,30 @@ export default async function ResultadoPage({ params }: PageProps<'/simulados/re
   return (
     <CascaApp>
       <main className="mx-auto w-full max-w-3xl flex-1 px-5 py-8 sm:py-10">
-        <header
-          className="rounded-2xl border border-borda bg-superficie p-6 shadow-[var(--sombra-2)]
-                     sm:p-8"
-        >
-          <p className="text-sm text-texto-suave">
-            Resultado do Simulado {tentativa.simulado_numero}
-          </p>
-          <div className="mt-4 flex flex-wrap items-end gap-x-8 gap-y-4">
-            <p className="font-display text-6xl font-semibold tabular-nums tracking-tight">
-              {nota}
-              <span className="text-2xl text-texto-fraco">/{TOTAL_QUESTOES}</span>
-            </p>
-            <p className="flex items-center gap-2 text-sm text-texto-suave">
-              <IconeCronometro className="size-4" />
-              Tempo usado{' '}
-              <span className="font-mono tabular-nums text-texto">
-                {formatarTempo(tentativa.tempo_usado_segundos ?? 0)}
-              </span>
-            </p>
-          </div>
-        </header>
+        <CartaoComparativo
+          titulo={`Resultado do Simulado ${tentativa.simulado_numero}`}
+          valorPrincipal={String(nota)}
+          sufixoValor={`/${TOTAL_QUESTOES}`}
+          diferenca={diferencaMedia}
+          estatisticas={[
+            { rotulo: 'Sua nota', valor: `${nota}/${TOTAL_QUESTOES}` },
+            ...(jaFezMaisDeUmaVez
+              ? [{ rotulo: 'Sua melhor nota', valor: `${melhorNota}/${TOTAL_QUESTOES}` }]
+              : []),
+            {
+              rotulo: 'Média da turma',
+              valor: mediaSimulado === null ? '—' : `${Math.round(mediaSimulado)}/${TOTAL_QUESTOES}`,
+            },
+          ]}
+        />
+
+        <p className="mt-3 flex items-center gap-2 text-sm text-texto-suave">
+          <IconeCronometro className="size-4" />
+          Tempo usado{' '}
+          <span className="font-mono tabular-nums text-texto">
+            {formatarTempo(tentativa.tempo_usado_segundos ?? 0)}
+          </span>
+        </p>
 
         <section
           className="mt-6 rounded-2xl border border-borda bg-superficie p-6

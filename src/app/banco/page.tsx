@@ -1,15 +1,12 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
-import { AvisoConteudo } from '@/components/aviso-conteudo'
 import { PraticarBanco, type QuestaoBanco } from '@/components/banco/praticar-banco'
 import { CascaApp } from '@/components/casca-app'
 import { IconeEmProducao, IconeFiltro } from '@/components/ui/icones'
 import { EstadoVazio, botaoPrimario, botaoSecundario } from '@/components/ui/primitivos'
+import { COLUNAS_SEGURAS_BANCO, STATUS_APROVADA } from '@/lib/questoes'
 import { createClient } from '@/lib/supabase/server'
-
-const COLUNAS_SEGURAS =
-  'id, area, subtema, dificuldade, ano_origem, fonte, enunciado, alternativa_a, alternativa_b, alternativa_c, alternativa_d, tabela_dados, grafico_svg, imagens'
 
 function texto(valor: string | string[] | undefined) {
   return typeof valor === 'string' && valor !== '' ? valor : undefined
@@ -29,12 +26,33 @@ export default async function BancoPage({ searchParams }: PageProps<'/banco'>) {
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Metadados dos filtros. São poucas centenas de linhas no total, então vale
-  // trazer e agrupar aqui em vez de manter uma view só para isso.
-  const { data: catalogo } = await supabase
+  // catalogo/respostas/encontradas não dependem umas das outras — só
+  // gabaritos depende do resultado de encontradas+respostas (os ids de quem
+  // já respondeu). Buscar as três de uma vez poupa dois round-trips
+  // sequenciais ao Postgres em toda visita à página.
+  let query = supabase
     .from('questoes')
-    .select('id, area, subtema, ano_origem')
+    .select(COLUNAS_SEGURAS_BANCO)
     .eq('tipo', 'banco')
+    .eq('status', STATUS_APROVADA)
+  if (fArea) query = query.eq('area', fArea)
+  if (fSubtema) query = query.eq('subtema', fSubtema)
+  if (fAno) query = query.eq('ano_origem', Number(fAno))
+
+  const [{ data: catalogo }, { data: respostas }, { data: encontradas }] = await Promise.all([
+    // Metadados dos filtros. São poucas centenas de linhas no total, então
+    // vale trazer e agrupar aqui em vez de manter uma view só para isso.
+    supabase
+      .from('questoes')
+      .select('id, area, subtema, ano_origem')
+      .eq('tipo', 'banco')
+      .eq('status', STATUS_APROVADA),
+    supabase
+      .from('respostas_banco')
+      .select('questao_id, alternativa_escolhida, favorito')
+      .eq('usuario_id', user.id),
+    query.order('area').order('subtema'),
+  ])
 
   const totalNoBanco = catalogo?.length ?? 0
 
@@ -45,11 +63,6 @@ export default async function BancoPage({ searchParams }: PageProps<'/banco'>) {
       </Moldura>
     )
   }
-
-  const { data: respostas } = await supabase
-    .from('respostas_banco')
-    .select('questao_id, alternativa_escolhida, favorito')
-    .eq('usuario_id', user.id)
 
   const respondidas = new Set(
     (respostas ?? []).filter((r) => r.alternativa_escolhida).map((r) => r.questao_id),
@@ -68,13 +81,6 @@ export default async function BancoPage({ searchParams }: PageProps<'/banco'>) {
   const anos = [
     ...new Set((catalogo ?? []).map((q) => q.ano_origem).filter((a): a is number => !!a)),
   ].sort((a, b) => b - a)
-
-  let query = supabase.from('questoes').select(COLUNAS_SEGURAS).eq('tipo', 'banco')
-  if (fArea) query = query.eq('area', fArea)
-  if (fSubtema) query = query.eq('subtema', fSubtema)
-  if (fAno) query = query.eq('ano_origem', Number(fAno))
-
-  const { data: encontradas } = await query.order('area').order('subtema')
 
   let questoes = (encontradas ?? []) as QuestaoBanco[]
   if (fStatus === 'respondida') questoes = questoes.filter((q) => respondidas.has(q.id))
@@ -175,8 +181,6 @@ function Moldura({ children }: { children: React.ReactNode }) {
         </header>
 
         {children}
-
-        <AvisoConteudo className="mt-12" />
       </main>
     </CascaApp>
   )

@@ -1,36 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SimulaMed — Reta Final ENAMED/ENARE
 
-## Getting Started
+SaaS de treino para o ENAMED/ENARE: simulados cronometrados, banco de questões,
+cadernos de erro e diagnóstico de desempenho. Narrativa do produto: **"Faça a
+prova antes da prova."**
 
-First, run the development server:
+Para as regras de negócio, decisões de arquitetura e armadilhas já resolvidas
+neste projeto, ver **[AGENTS.md](./AGENTS.md)** — é a fonte de verdade sobre
+o schema, o RLS do Modo Prova, o formato rico de questão e o sistema visual.
+Este README cobre só o "como rodar".
+
+## Stack
+
+Next.js 16 (App Router) + TypeScript + Tailwind 4 · Supabase (Postgres + Auth
++ RLS) · Vercel. Auth por magic link (login por senha só existe em
+desenvolvimento, ver abaixo).
+
+## Rodando localmente
 
 ```bash
+npm install
+cp .env.example .env.local   # preencher com as chaves do projeto Supabase
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abra [http://localhost:3000](http://localhost:3000). Como o acesso real é por
+magic link (que esbarra na cota de e-mail do Supabase — ver AGENTS.md), use
+`/dev/login` para testar telas protegidas sem depender de caixa de entrada:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run dev:usuario -- --limpar   # cria/reseta dev@reta-final.local
+npm run dev                        # depois entre em /dev/login
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+`/dev/login` só existe fora de `NODE_ENV=production` — três guardas
+independentes garantem isso (ver AGENTS.md).
 
-## Learn More
+## Variáveis de ambiente
 
-To learn more about Next.js, take a look at the following resources:
+Ver `.env.example` para a lista completa e o que cada uma faz. Resumo:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Variável                        | Obrigatória para           |
+| -------------------------------- | --------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`        | tudo                        |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY`   | tudo                        |
+| `SUPABASE_SERVICE_ROLE_KEY`       | scripts de importação e o webhook da Lowify |
+| `NEXT_PUBLIC_SITE_URL`            | Open Graph / robots.txt / sitemap.xml corretos em produção |
+| `LOWIFY_WEBHOOK_SECRET`           | webhook `/api/webhooks/lowify` |
+| `NEXT_PUBLIC_SENTRY_DSN`          | monitoramento de erros (Sentry) |
+| `SENTRY_AUTH_TOKEN` / `SENTRY_ORG` / `SENTRY_PROJECT` | upload de source maps do Sentry no build |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Scripts
 
-## Deploy on Vercel
+```bash
+npm run dev                # servidor de desenvolvimento
+npm run build               # build de produção
+npm run lint                 # ESLint
+npm run typecheck            # tsc --noEmit
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+npm run import:questoes -- --dry-run   # importa os Simulados (planilha de produção)
+npm run import:questoes
+npm run import:banco -- --dry-run       # importa o Banco de 500
+npm run import:banco
+npm run questoes:aprovar                # reaprova questões após reimportar (ver AGENTS.md)
+npm run imagens:enviar <arquivo> <nome> # envia imagem clínica para o bucket privado
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+npm run testar:prova        # E2E do Modo Prova, como aluno real (RLS ativo)
+npm run testar:banco         # E2E do Banco de Questões
+npm run testar:conta         # E2E de onboarding/conta
+npm run testar:area-fraca    # teste unitário do diagnóstico (sem banco)
+npm run dev:usuario -- --limpar   # cria/reseta o usuário de dev
+```
+
+## Deploy
+
+GitHub → Vercel (deploy automático a cada push em `main`). Configurar em
+Vercel todas as variáveis de ambiente da tabela acima (a `SUPABASE_SERVICE_ROLE_KEY`
+e o `LOWIFY_WEBHOOK_SECRET` são segredos — nunca commitar, só cadastrar como
+env var da Vercel).
+
+## CI
+
+`.github/workflows/ci.yml` roda lint + typecheck + build em todo push/PR para
+`main`. Os testes E2E (`testar:*`) rodam contra o Supabase de produção e por
+isso não entram no CI automático — só sob demanda (`workflow_dispatch`), com
+os segredos `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` e
+`SUPABASE_SERVICE_ROLE_KEY` cadastrados em Settings → Secrets and variables →
+Actions.

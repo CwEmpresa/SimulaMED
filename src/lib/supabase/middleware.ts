@@ -12,6 +12,10 @@ import type { Database } from './types'
 const ROTAS_PUBLICAS = [
   '/login',
   '/auth',
+  '/termos',
+  '/privacidade',
+  // A Lowify chama isto sem sessão nenhuma — não é rota de aluno.
+  '/api/webhooks',
   ...(process.env.NODE_ENV !== 'production' ? ['/dev'] : []),
 ]
 

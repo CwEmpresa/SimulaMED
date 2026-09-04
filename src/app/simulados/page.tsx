@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { AvisoConteudo } from '@/components/aviso-conteudo'
 import { CascaApp } from '@/components/casca-app'
 import { CartaoSimulado } from '@/components/simulados/cartao-simulado'
+import { STATUS_APROVADA } from '@/lib/questoes'
 import { SIMULADOS } from '@/lib/simulado'
 import { createClient } from '@/lib/supabase/server'
 
@@ -14,7 +15,11 @@ export default async function SimuladosPage() {
   if (!user) redirect('/login')
 
   const [{ data: questoes }, { data: tentativas }] = await Promise.all([
-    supabase.from('questoes').select('simulado_numero').eq('tipo', 'simulado'),
+    supabase
+      .from('questoes')
+      .select('simulado_numero')
+      .eq('tipo', 'simulado')
+      .eq('status', STATUS_APROVADA),
     supabase
       .from('tentativas_simulado')
       .select('simulado_numero, status, nota')

@@ -193,6 +193,28 @@ export function IconeSino(p: PropsIcone) {
   )
 }
 
+/** Seta de tendência — selo de comparação com a média (acima/abaixo). */
+export function IconeTendencia({
+  direcao,
+  ...p
+}: PropsIcone & { direcao: 'alta' | 'baixa' }) {
+  return (
+    <Base {...p}>
+      {direcao === 'alta' ? (
+        <>
+          <path d="m4 16 6-6 4 4 6-9" />
+          <path d="M15 5h5v5" />
+        </>
+      ) : (
+        <>
+          <path d="m4 8 6 6 4-4 6 9" />
+          <path d="M15 19h5v-5" />
+        </>
+      )}
+    </Base>
+  )
+}
+
 /** Prancheta com lista marcada — o gabarito completo do simulado. */
 export function IconeGabarito(p: PropsIcone) {
   return (
@@ -223,6 +245,44 @@ export function IconeAlerta(p: PropsIcone) {
     <Base {...p}>
       <path d="M12 4.5 21 19H3l9-14.5Z" />
       <path d="M12 10v4M12 16.5v.5" />
+    </Base>
+  )
+}
+
+/** Raio — o Modo Combo. */
+export function IconeRaio(p: PropsIcone) {
+  return (
+    <Base {...p}>
+      <path d="M13 3 5 13.5h5.5L11 21l8-10.5h-5.5L13 3Z" />
+    </Base>
+  )
+}
+
+/** Traçado em zigue-zague — alterna gráfico de linha nos cartões de métrica. */
+export function IconeGraficoLinha(p: PropsIcone) {
+  return (
+    <Base {...p}>
+      <path d="M4 15.5 8.5 10l3 3 3.5-6 5 5.5" />
+    </Base>
+  )
+}
+
+/** Barras verticais — alterna gráfico de barras nos cartões de métrica. */
+export function IconeGraficoBarra(p: PropsIcone) {
+  return (
+    <Base {...p}>
+      <path d="M5 19V13" />
+      <path d="M12 19V6" />
+      <path d="M19 19v-8" />
+    </Base>
+  )
+}
+
+/** Chevron simples para baixo — indicador de seletor/expansível. */
+export function IconeChevronBaixo(p: PropsIcone) {
+  return (
+    <Base {...p}>
+      <path d="m6 9 6 6 6-6" />
     </Base>
   )
 }

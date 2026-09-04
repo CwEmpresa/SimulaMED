@@ -1,6 +1,7 @@
 'use client'
 
 import { motion, useReducedMotion } from 'motion/react'
+import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Suspense, useState, type FormEvent } from 'react'
 
@@ -130,6 +131,16 @@ export default function LoginPage() {
       </Suspense>
 
       <AvisoConteudo className="text-center" />
+
+      <p className="text-center text-xs text-texto-fraco">
+        <Link href="/termos" className="underline underline-offset-4 hover:text-texto-suave">
+          Termos de Uso
+        </Link>
+        {' · '}
+        <Link href="/privacidade" className="underline underline-offset-4 hover:text-texto-suave">
+          Política de Privacidade
+        </Link>
+      </p>
     </main>
   )
 }

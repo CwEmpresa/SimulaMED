@@ -42,7 +42,7 @@ const SEMENTES = [
     resposta_correta: 'B',
     comentario_correta: 'Comentário da correta, semeado para teste.',
     comentario_erros: 'A, C e D: erradas por serem semeadas assim.',
-    status: 'Teste',
+    status: 'Aprovada',
   },
   {
     id_planilha: 'TESTE-BANCO-2',
@@ -60,7 +60,7 @@ const SEMENTES = [
     resposta_correta: 'A',
     comentario_correta: 'Comentário da correta da segunda questão.',
     comentario_erros: 'B, C e D: erradas.',
-    status: 'Teste',
+    status: 'Aprovada',
   },
 ]
 
@@ -94,10 +94,14 @@ try {
   console.log('\n1. Aluno autenticado')
 
   // ── leitura sem gabarito ──────────────────────────────────────────────────
+  // Filtra pelos ids semeados: a tabela já tem as 300 questões reais do Banco
+  // (importadas antes deste teste existir), então contar tipo='banco' sem
+  // filtro nenhum não isola o que este teste semeou.
   const { data: lidas } = await aluno
     .from('questoes')
     .select('id, area, subtema, ano_origem, enunciado, alternativa_a')
     .eq('tipo', 'banco')
+    .in('id', idsSemeados)
   checar(lidas?.length === 2, 'aluno lê as questões do banco (colunas seguras)')
 
   const { error: erroGabarito } = await aluno

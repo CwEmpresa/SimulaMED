@@ -7,8 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
     "import:questoes": "tsx scripts/import-questoes.ts",
     "import:banco": "tsx scripts/import-banco.ts",
+    "questoes:aprovar": "node --env-file=.env.local scripts/aprovar-questoes.mjs",
+    "imagens:enviar": "node --env-file=.env.local scripts/enviar-imagem-questao.mjs",
     "verificar:import": "node --env-file=.env.local scripts/verificar-import.mjs",
     "testar:prova": "node --env-file=.env.local scripts/testar-fluxo-prova.mjs",
     "testar:banco": "node --env-file=.env.local scripts/testar-banco.mjs",
@@ -17,6 +20,7 @@
     "dev:usuario": "node --env-file=.env.local scripts/criar-usuario-dev.mjs"
   },
   "dependencies": {
+    "@sentry/nextjs": "^10.73.0",
     "@supabase/ssr": "^0.12.5",
     "@supabase/supabase-js": "^2.114.0",
     "motion": "^13.2.0",

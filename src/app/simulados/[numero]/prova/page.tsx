@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
 
 import { TelaProva } from '@/components/prova/tela-prova'
+import { STATUS_APROVADA } from '@/lib/questoes'
 import { SIMULADOS, type ImagemApoio, type TabelaDados } from '@/lib/simulado'
 import { createClient } from '@/lib/supabase/server'
 
@@ -47,6 +48,7 @@ export default async function ProvaPage({ params }: PageProps<'/simulados/[numer
       )
       .eq('tipo', 'simulado')
       .eq('simulado_numero', simuladoNumero)
+      .eq('status', STATUS_APROVADA)
       .order('numero_na_prova'),
     supabase
       .from('respostas_simulado')

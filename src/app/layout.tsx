@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import { Figtree, Geist, Geist_Mono } from 'next/font/google'
 
+import { DESCRICAO_PRODUTO, NOME_PRODUTO, SITE_URL } from '@/lib/site'
+
 import './globals.css'
 
 // Figtree carrega os títulos e os números: humanista o bastante para não soar
@@ -25,8 +27,28 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'SimulaMed ENAMED/ENARE',
-  description: 'Faça a prova antes da prova. Simulados cronometrados, banco de questões e cadernos de erro para o ENAMED/ENARE.',
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: `${NOME_PRODUTO} — Treino para o ENAMED/ENARE`,
+    template: `%s · ${NOME_PRODUTO}`,
+  },
+  description: DESCRICAO_PRODUTO,
+  openGraph: {
+    type: 'website',
+    locale: 'pt_BR',
+    siteName: NOME_PRODUTO,
+    title: `${NOME_PRODUTO} — Treino para o ENAMED/ENARE`,
+    description: DESCRICAO_PRODUTO,
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: `${NOME_PRODUTO} — Treino para o ENAMED/ENARE`,
+    description: DESCRICAO_PRODUTO,
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 }
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {

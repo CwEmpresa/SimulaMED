@@ -3,6 +3,8 @@
 import { motion, useReducedMotion } from 'motion/react'
 import Link from 'next/link'
 
+import { IconeTendencia } from '@/components/ui/icones'
+
 /**
  * Primitivos visuais do produto.
  *
@@ -97,6 +99,92 @@ export function CartaoMetrica({
       ) : (
         <div className={classe}>{conteudo}</div>
       )}
+    </motion.div>
+  )
+}
+
+/**
+ * Cartão de comparação com a média — nota (ou média pessoal) em destaque, selo
+ * de tendência no canto e um rodapé de estatísticas relacionadas.
+ *
+ * `diferenca` nulo (não zero) é o estado "ainda sem turma para comparar" —
+ * ninguém finalizou esse simulado ainda, ou o próprio aluno é o primeiro
+ * registro. Nesse caso o selo simplesmente não aparece, em vez de mostrar
+ * "+0%" e sugerir uma comparação que não existe.
+ */
+export function CartaoComparativo({
+  titulo,
+  valorPrincipal,
+  sufixoValor,
+  diferenca,
+  estatisticas,
+  indice = 0,
+}: {
+  titulo: string
+  valorPrincipal: string
+  sufixoValor?: string
+  /** Pontos percentuais acima (positivo) ou abaixo (negativo) da média. */
+  diferenca: number | null
+  estatisticas: { rotulo: string; valor: string }[]
+  indice?: number
+}) {
+  const reduzir = useReducedMotion()
+  const emAlta = diferenca !== null && diferenca > 0
+  const emBaixa = diferenca !== null && diferenca < 0
+  const rotuloTendencia =
+    diferenca === null
+      ? null
+      : emAlta
+        ? `+${diferenca}% acima da média`
+        : emBaixa
+          ? `${diferenca}% abaixo da média`
+          : 'Na média da turma'
+
+  return (
+    <motion.div
+      initial={reduzir ? false : { opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ ...ENTRADA, delay: reduzir ? 0 : indice * 0.06 }}
+      className="rounded-2xl border border-borda bg-superficie p-6 shadow-[var(--sombra-1)]"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-sm font-medium text-texto-suave">{titulo}</p>
+        {diferenca !== null && (
+          <span
+            className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs
+                        font-semibold tabular-nums ${
+                          emAlta
+                            ? 'bg-acerto-suave text-acerto'
+                            : emBaixa
+                              ? 'bg-erro-suave text-erro'
+                              : 'bg-superficie-2 text-texto-suave'
+                        }`}
+          >
+            {(emAlta || emBaixa) && (
+              <IconeTendencia direcao={emAlta ? 'alta' : 'baixa'} className="size-3.5" />
+            )}
+            {rotuloTendencia}
+          </span>
+        )}
+      </div>
+
+      <p className="mt-3 font-display text-4xl font-semibold tabular-nums tracking-tight">
+        {valorPrincipal}
+        {sufixoValor && <span className="text-lg text-texto-fraco">{sufixoValor}</span>}
+      </p>
+
+      <div className="mt-5 flex flex-wrap gap-x-2 gap-y-1 border-t border-borda pt-4 text-xs text-texto-fraco">
+        {estatisticas.map((e, i) => (
+          <span key={e.rotulo}>
+            {i > 0 && (
+              <span aria-hidden="true" className="mr-2 text-borda-forte">
+                ·
+              </span>
+            )}
+            {e.rotulo} <span className="font-semibold tabular-nums text-texto">{e.valor}</span>
+          </span>
+        ))}
+      </div>
     </motion.div>
   )
 }

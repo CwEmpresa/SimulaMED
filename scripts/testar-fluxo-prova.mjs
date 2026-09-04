@@ -91,16 +91,22 @@ try {
   // Armadilha do privilégio por coluna: contar com select('*') em `questoes`
   // devolve count nulo e NÃO levanta erro — a tela mostra "nenhuma questão"
   // com o banco cheio. Contagens têm de usar uma coluna permitida.
+  //
+  // Filtra por simulado_numero=1 (não só tipo='simulado'): os 3 simulados já
+  // estão importados (300 questões no total), mas este teste só exercita o
+  // Simulado 1.
   const { count: contagemPorId } = await aluno.cliente
     .from('questoes')
     .select('id', { count: 'exact', head: true })
     .eq('tipo', 'simulado')
+    .eq('simulado_numero', 1)
   checar(contagemPorId === 100, 'contagem por coluna permitida funciona', `(veio ${contagemPorId})`)
 
   const { count: contagemPorEstrela } = await aluno.cliente
     .from('questoes')
     .select('*', { count: 'exact', head: true })
     .eq('tipo', 'simulado')
+    .eq('simulado_numero', 1)
   checar(
     contagemPorEstrela === null,
     "select('*') em questoes segue indisponível ao aluno (se isso mudar, o revoke de coluna caiu)",

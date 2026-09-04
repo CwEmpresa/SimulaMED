@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
-import { AvisoConteudo } from '@/components/aviso-conteudo'
 import { CascaApp } from '@/components/casca-app'
 import { IconeBanco, IconeDiagnostico, IconeSimulado } from '@/components/ui/icones'
 import {
@@ -231,8 +230,6 @@ function Moldura({ children }: { children: React.ReactNode }) {
         </header>
 
         {children}
-
-        <AvisoConteudo className="mt-12" />
       </main>
     </CascaApp>
   )
