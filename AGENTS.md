@@ -54,6 +54,60 @@ npm run import:questoes                # faz upsert por id_planilha (idempotente
 
 O import exige `SUPABASE_SERVICE_ROLE_KEY` no `.env.local` (ignora RLS).
 
+## Formato rico de questão: três apoios visuais independentes
+
+`questoes` tem três colunas opcionais para aproximar o formato da prova real —
+cada uma liga/desliga por conta própria, uma questão pode ter nenhuma, uma, ou
+as três combinadas:
+
+- **`tabela_dados`** (jsonb) — `{ colunas: string[], linhas: string[][] }`.
+  Número e nomes de coluna não são fixos: às vezes 3 ("Exame"/"Resultado"/
+  "Referência"), às vezes 4 ("Parâmetro"/"Pré-BD"/"Pós-BD"/"Previsto"). **É
+  `colunas`/`linhas` como arrays, não uma lista de objetos `{coluna: valor}`
+  por linha** — o Postgres normaliza jsonb reordenando as chaves de um objeto
+  (por tamanho, depois lexicograficamente), então um objeto por linha perderia
+  a ordem das colunas silenciosamente. Só array preserva ordem de inserção no
+  jsonb. Verificado na prática: inseri um objeto com chaves na ordem
+  Parâmetro/Pré-BD/Pós-BD/Previsto e o Postgres devolveu Pré-BD/Pós-BD/
+  Previsto/Parâmetro (6/6/8/9 caracteres).
+- **`grafico_svg`** (text) — marcação SVG inline de um traçado/gráfico
+  esquemático (ECG, curva de espirometria). É representação de padrão
+  fisiológico, não foto de paciente real, então **pode** ser gerada com
+  segurança (ao contrário de `imagens`, abaixo). Renderizado via
+  `dangerouslySetInnerHTML` porque é conteúdo autoral de `questoes` (mesma
+  confiança de `enunciado`), nunca entrada de usuário.
+- **`imagens`** (jsonb) — lista de `{ url, legenda }`, 0 a N por questão (ex.
+  sequência radiológica evolutiva "1 hora / 12 horas / 24 horas", renderizadas
+  lado a lado). Substituiu os campos antigos `imagem_url`/`imagem_legenda`
+  (migração `substituir_imagem_por_imagens_e_adicionar_grafico_svg`).
+
+Nenhum dos três é gabarito, então ficam liberados para `authenticated` pelo
+mesmo grant de coluna que libera `enunciado`/`alternativa_*` — toda coluna
+nova nesta tabela precisa de um `grant select` explícito à parte, porque não
+herda o grant de coluna já existente (já foi esquecido uma vez).
+
+- Renderização em `src/components/questao/apoio-questao.tsx`
+  (`TabelaDadosQuestao`, `GraficoSvgQuestao`, `ImagensQuestao`, esta última com
+  lightbox por imagem), reaproveitado em Modo Prova, Banco, Gabarito e
+  Cadernos — sempre entre o enunciado e as alternativas, e sempre condicional:
+  a maioria das questões continua só com texto.
+- **Nunca gerar imagem médica *fotográfica* sintética por IA.** Uma foto
+  "quase certa" de lesão de pele/radiografia/endoscopia ensinaria errado
+  exatamente o reconhecimento visual que a questão testa. `imagens` fica
+  vazio até existir um banco de imagens licenciado; preencher é decisão do
+  Carlos, não algo para fazer sozinho. Isso não vale para `grafico_svg` — um
+  traçado esquemático não é uma foto de paciente.
+- **Sem logo de terceiro na tela de prova.** O cabeçalho do Modo Prova
+  (`TelaProva`) usa a marca do próprio produto e uma tarja "Modo Prova ·
+  Simulado Nº X" — nunca a logo do ENAMED/ENARE/INEP, o que sugeriria
+  afiliação/endosso que não existe (contradiria o aviso legal do rodapé).
+- **Nenhuma pista de área/subtema perto da questão em Modo Prova.** Uma
+  primeira versão mostrava a área (e um código curto tipo "CM"/"PED") ao lado
+  de cada questão — foi removida porque entrega o tema antes de o aluno
+  responder, o que a prova real não faz e reduz a dificuldade do treino. A
+  área continua visível depois de responder (Gabarito, Cadernos, Diagnóstico),
+  onde é revisão, não pista.
+
 ## Modo Prova — regras que não podem ser relaxadas
 
 O simulado vale dinheiro e nota, então as defesas ficam no **banco**, não na UI.
@@ -191,6 +245,40 @@ proporção 60-30-10: reservado para ação e progresso.
 Um Server Component **não pode passar a função de um componente** para um Client
 Component (`icone={IconeX}` quebra em runtime). Passar o elemento já renderizado:
 `icone={<IconeX className="size-5" />}`.
+
+## Caderno de Erros, Gabarito e área mais fraca
+
+- **Caderno de Erros só recebe questão respondida E errada.** `finalizar_tentativa`
+  exigia apenas `coalesce(r.correta, false) = false`, o que também é verdade
+  para uma questão nunca tocada (a linha nem existe em `respostas_simulado`) —
+  ou seja, em branco entrava como "erro". A condição agora exige
+  `r.alternativa_escolhida is not null and r.correta = false`. Uma migração de
+  limpeza removeu as entradas antigas que só existiam por causa disso.
+- **`respostas_simulado_detalhadas`** (view, `security_invoker`) expõe
+  `usuario_id`/`alternativa_escolhida` por resposta de simulado. Existe porque
+  `caderno_erros` é deduplicado por `(usuario_id, questao_id, origem)` — não
+  guarda qual tentativa gerou a entrada nem qual alternativa foi marcada — e a
+  tela de Cadernos precisa disso pra mostrar "sua resposta" em cada erro.
+- **`DetalheQuestao`** (`src/components/revisao/detalhe-questao.tsx`) é o
+  componente único para "alternativas + resposta marcada + resposta correta +
+  comentário", reaproveitado em Cadernos e no Gabarito — nunca duplicar essa
+  marcação em outro lugar.
+- **Ver Gabarito** (`/simulados/resultado/[id]/gabarito`) mostra as 100
+  questões coloridas por resultado (verde/vermelho/cinza), reaproveitando a
+  divisão grade+detalhe do Modo Prova. Nunca assumir uma resposta correta
+  "default" quando o gabarito não resolve para uma questão (já foi um bug real
+  aqui: caía silenciosamente em `'A'`) — filtrar a questão fora é preferível a
+  mostrar um resultado errado numa tela cujo propósito é ser a fonte confiável
+  do que o aluno acertou ou errou.
+- **`analisarAreaMaisFraca`** (`src/lib/diagnostico.ts`) ordena o array por
+  conta própria antes de ler `[0]`/`[length-1]` — não confia que quem chama já
+  mandou ordenado. Ela existe para eliminar exatamente o tipo de bug de "pegar
+  uma posição de array como se fosse a resposta certa"; ficar frágil a isso
+  internamente seria irônico. Retorna um dos quatro tipos (`sem_dados`,
+  `tudo_bem`, `empatado`, `ok`) — `empatado` cobre tanto "ninguém respondeu
+  nada" quanto qualquer empate genuíno no pior percentual, e `ok.areas` traz
+  TODAS as áreas empatadas na pior posição, nunca só a primeira do array.
+  Coberta por `npm run testar:area-fraca` (função pura, sem banco).
 
 ## Convenções
 

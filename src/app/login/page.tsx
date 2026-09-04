@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { Suspense, useState, type FormEvent } from 'react'
 
 import { AvisoConteudo } from '@/components/aviso-conteudo'
-import { IconeAlerta, IconeSeta, IconeSimulado } from '@/components/ui/icones'
+import { IconeAlerta, IconeSeta } from '@/components/ui/icones'
 import { botaoPrimario } from '@/components/ui/primitivos'
 import { createClient } from '@/lib/supabase/client'
 
@@ -114,17 +114,13 @@ export default function LoginPage() {
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-8 px-5 py-12">
       <header className="text-center">
-        <span
-          aria-hidden="true"
-          className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-acento
-                     text-acento-texto shadow-[var(--sombra-acento)]"
-        >
-          <IconeSimulado className="size-6" />
-        </span>
-        <h1 className="mt-5 font-display text-2xl font-semibold tracking-tight">
-          Reta Final ENAMED/ENARE
+        <h1 className="flex justify-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-simulamed.png" alt="SimulaMed" className="h-8 w-auto" />
         </h1>
-        <p className="mt-2 text-sm text-texto-suave">Faça a prova antes da prova.</p>
+        <p className="mt-3 text-sm text-texto-suave">
+          ENAMED/ENARE · Faça a prova antes da prova.
+        </p>
       </header>
 
       <Suspense

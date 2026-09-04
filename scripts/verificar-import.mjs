@@ -17,7 +17,7 @@ import { readFileSync } from 'node:fs'
 
 const RE_REFERENCIA = /(?<![A-Za-zÀ-ÿ])([A-D](?:\s*(?:,|\se\s)\s*[A-D])*)\s*:/g
 
-const seed = JSON.parse(readFileSync('supabase/seed/simulado-01.json', 'utf8'))
+const seed = JSON.parse(readFileSync('supabase/seed/questoes.json', 'utf8'))
 
 const wb = new ExcelJS.Workbook()
 await wb.xlsx.readFile(process.env.PLANILHA_QUESTOES)

@@ -193,6 +193,31 @@ export function IconeSino(p: PropsIcone) {
   )
 }
 
+/** Prancheta com lista marcada — o gabarito completo do simulado. */
+export function IconeGabarito(p: PropsIcone) {
+  return (
+    <Base {...p}>
+      <path d="M8 4h8a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z" />
+      <path d="M9 3.5h6a1 1 0 0 1 1 1V6H8V4.5a1 1 0 0 1 1-1Z" />
+      <path d="m9.5 11 1.5 1.5 2-3" />
+      <path d="M13.5 14.5h3" />
+      <path d="m9.5 17 1.5 1.5 2-3" />
+    </Base>
+  )
+}
+
+/** Setas para fora — expandir/ampliar imagem. */
+export function IconeExpandir(p: PropsIcone) {
+  return (
+    <Base {...p}>
+      <path d="M9 4H4v5" />
+      <path d="m4 4 6 6" />
+      <path d="M15 20h5v-5" />
+      <path d="m20 20-6-6" />
+    </Base>
+  )
+}
+
 export function IconeAlerta(p: PropsIcone) {
   return (
     <Base {...p}>

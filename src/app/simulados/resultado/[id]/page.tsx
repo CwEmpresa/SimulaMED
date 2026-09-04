@@ -3,23 +3,13 @@ import { notFound, redirect } from 'next/navigation'
 
 import { AvisoConteudo } from '@/components/aviso-conteudo'
 import { CascaApp } from '@/components/casca-app'
-import { IconeCaderno, IconeCronometro } from '@/components/ui/icones'
+import { IconeCaderno, IconeCronometro, IconeGabarito } from '@/components/ui/icones'
 import { BarraArea, TituloSecao, botaoPrimario, botaoSecundario } from '@/components/ui/primitivos'
+import { analisarAreaMaisFraca, formatarListaDeAreas } from '@/lib/diagnostico'
 import { TOTAL_QUESTOES, formatarTempo } from '@/lib/simulado'
 import { createClient } from '@/lib/supabase/server'
 
 type DesempenhoArea = { acertos: number; total: number; percentual: number }
-
-/**
- * Há área mais fraca a destacar? Exige desempenho abaixo do bom E alguma
- * diferença entre a pior e a melhor — senão o "destaque" é só a ordem da lista.
- */
-function temAreaDestacada(areas: [string, DesempenhoArea][]) {
-  if (areas.length < 2) return false
-  const pior = areas[0][1].percentual
-  const melhor = areas[areas.length - 1][1].percentual
-  return pior < 70 && pior < melhor
-}
 
 export default async function ResultadoPage({ params }: PageProps<'/simulados/resultado/[id]'>) {
   const { id } = await params
@@ -46,6 +36,10 @@ export default async function ResultadoPage({ params }: PageProps<'/simulados/re
   const areas = Object.entries(
     (tentativa.percentual_por_area ?? {}) as Record<string, DesempenhoArea>,
   ).sort((a, b) => a[1].percentual - b[1].percentual) // pior primeiro
+
+  const analiseArea = analisarAreaMaisFraca(
+    areas.map(([area, d]) => ({ area, percentual: d.percentual })),
+  )
 
   return (
     <CascaApp>
@@ -95,14 +89,21 @@ export default async function ResultadoPage({ params }: PageProps<'/simulados/re
           </ul>
         </section>
 
-      {/* Só aponta uma área mais fraca quando ela é de fato mais fraca que as
-          outras. Num empate — típico de quem deixou quase tudo em branco —
-          eleger a primeira da lista seria conselho arbitrário. */}
-        {temAreaDestacada(areas) && (
+        {/* Só aponta uma área mais fraca quando ela é de fato mais fraca que as
+            outras. Num empate — típico de quem deixou tudo em branco — eleger
+            uma das empatadas por ordem de array seria conselho arbitrário;
+            quando há empate real na pior posição, listamos todas. */}
+        {analiseArea.tipo === 'ok' && (
           <p className="mt-4 rounded-xl bg-acento-suave px-4 py-3 text-sm text-acento">
-            Sua área mais fraca é <strong>{areas[0][0]}</strong>, com{' '}
-            <strong className="tabular-nums">{areas[0][1].percentual}%</strong>. É por onde vale
+            {analiseArea.areas.length === 1 ? 'Sua área mais fraca é' : 'Suas áreas mais fracas são'}{' '}
+            <strong>{formatarListaDeAreas(analiseArea.areas)}</strong>, com{' '}
+            <strong className="tabular-nums">{analiseArea.percentual}%</strong>. É por onde vale
             começar a revisão.
+          </p>
+        )}
+        {analiseArea.tipo === 'empatado' && (
+          <p className="mt-4 rounded-xl bg-superficie-2 px-4 py-3 text-sm text-texto-suave">
+            Responda questões para gerar sua análise de desempenho por área.
           </p>
         )}
 
@@ -110,6 +111,10 @@ export default async function ResultadoPage({ params }: PageProps<'/simulados/re
           <Link href="/cadernos?origem=simulado" className={botaoPrimario}>
             <IconeCaderno className="size-4" />
             Revisar meus erros
+          </Link>
+          <Link href={`/simulados/resultado/${tentativa.id}/gabarito`} className={botaoSecundario}>
+            <IconeGabarito className="size-4" />
+            Ver gabarito
           </Link>
           <Link href="/simulados" className={botaoSecundario}>
             Voltar aos simulados

@@ -19,7 +19,7 @@ import {
   TituloSecao,
   botaoPrimario,
 } from '@/components/ui/primitivos'
-import { calcularDesempenhoPorArea, temAreaDestacada } from '@/lib/diagnostico'
+import { analisarAreaMaisFraca, calcularDesempenhoPorArea, formatarListaDeAreas } from '@/lib/diagnostico'
 import { SIMULADOS, TOTAL_QUESTOES, formatarTempo } from '@/lib/simulado'
 import { createClient } from '@/lib/supabase/server'
 
@@ -130,7 +130,7 @@ export default async function DashboardPage() {
   const percentualBanco = totalBanco ? Math.round((100 * doBanco.length) / totalBanco) : null
 
   const agregados = calcularDesempenhoPorArea(finalizadas, doBanco)
-  const areaMaisFraca = temAreaDestacada(agregados) ? agregados[0] : null
+  const analiseArea = analisarAreaMaisFraca(agregados)
 
   const primeiroNome = perfil?.nome?.split(' ')[0]
 
@@ -219,22 +219,29 @@ export default async function DashboardPage() {
           </div>
 
           <CartaoContraste indice={1}>
-            {areaMaisFraca ? (
+            <p className="text-xs font-medium uppercase tracking-wide text-contraste-texto-suave">
+              Sua área mais fraca
+            </p>
+
+            {analiseArea.tipo === 'ok' ? (
               <>
-                <p className="text-xs font-medium uppercase tracking-wide text-contraste-texto-suave">
-                  Sua área mais fraca
-                </p>
                 <h3 className="mt-2 font-display text-xl font-semibold tracking-tight">
-                  {areaMaisFraca.area}
+                  {formatarListaDeAreas(analiseArea.areas)}
                 </h3>
                 <p className="mt-1 font-display text-4xl font-semibold tabular-nums tracking-tight text-contraste-acento">
-                  {areaMaisFraca.percentual}%
+                  {analiseArea.percentual}%
                 </p>
                 <p className="mt-1 text-xs text-contraste-texto-suave">
-                  {areaMaisFraca.acertos} de {areaMaisFraca.total} questões
+                  {analiseArea.areas.length > 1
+                    ? `${analiseArea.areas.length} áreas empatadas na pior posição`
+                    : 'sua área com mais espaço para crescer'}
                 </p>
                 <Link
-                  href={`/banco?area=${encodeURIComponent(areaMaisFraca.area)}`}
+                  href={
+                    analiseArea.areas.length === 1
+                      ? `/banco?area=${encodeURIComponent(analiseArea.areas[0])}`
+                      : '/banco'
+                  }
                   className="mt-5 inline-flex items-center gap-2 rounded-xl bg-contraste-acento-suave
                              px-4 py-2 text-sm font-medium text-contraste-acento transition-colors
                              hover:bg-contraste-acento hover:text-contraste-fundo"
@@ -243,11 +250,26 @@ export default async function DashboardPage() {
                   <IconeSeta className="size-4" />
                 </Link>
               </>
+            ) : analiseArea.tipo === 'empatado' ? (
+              <>
+                <h3 className="mt-2 font-display text-lg font-semibold tracking-tight">
+                  Desempenho parelho
+                </h3>
+                <p className="mt-2 flex-1 text-sm leading-relaxed text-contraste-texto-suave">
+                  Responda questões para gerar sua análise de desempenho por área.
+                </p>
+              </>
+            ) : analiseArea.tipo === 'tudo_bem' ? (
+              <>
+                <h3 className="mt-2 font-display text-lg font-semibold tracking-tight">
+                  Nenhuma área fraca
+                </h3>
+                <p className="mt-2 flex-1 text-sm leading-relaxed text-contraste-texto-suave">
+                  Seu desempenho está bom em todas as áreas até aqui. Continue assim.
+                </p>
+              </>
             ) : (
               <>
-                <p className="text-xs font-medium uppercase tracking-wide text-contraste-texto-suave">
-                  Sua área mais fraca
-                </p>
                 <h3 className="mt-2 font-display text-lg font-semibold tracking-tight">
                   Ainda sem dados suficientes
                 </h3>

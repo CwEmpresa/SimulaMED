@@ -12,7 +12,7 @@ import {
   botaoPrimario,
   botaoSecundario,
 } from '@/components/ui/primitivos'
-import { calcularDesempenhoPorArea, temAreaDestacada } from '@/lib/diagnostico'
+import { analisarAreaMaisFraca, calcularDesempenhoPorArea, formatarListaDeAreas } from '@/lib/diagnostico'
 import { TOTAL_QUESTOES } from '@/lib/simulado'
 import { createClient } from '@/lib/supabase/server'
 
@@ -64,6 +64,7 @@ export default async function DiagnosticoPage() {
   }
 
   const agregados = calcularDesempenhoPorArea(finalizadas, doBanco)
+  const analiseArea = analisarAreaMaisFraca(agregados)
 
   // Só usado para a legenda "considerando a tentativa mais recente" abaixo —
   // a soma de verdade já vem do helper compartilhado.
@@ -128,11 +129,17 @@ export default async function DiagnosticoPage() {
         </ul>
 
         {/* Mesmo critério da tela de resultado: sem diferença entre as áreas,
-            eleger a primeira seria conselho arbitrário. */}
-        {temAreaDestacada(agregados) && (
+            eleger a primeira seria conselho arbitrário; em empate de verdade
+            na pior posição, listamos todas as empatadas. */}
+        {analiseArea.tipo === 'ok' && (
           <p className="mt-6 rounded-xl bg-acento-suave px-4 py-3 text-sm text-acento">
-            Comece por <strong>{agregados[0].area}</strong>: é onde está a maior distância
-            entre o que você acerta e o que a prova cobra.
+            Comece por <strong>{formatarListaDeAreas(analiseArea.areas)}</strong>: é onde está a
+            maior distância entre o que você acerta e o que a prova cobra.
+          </p>
+        )}
+        {analiseArea.tipo === 'empatado' && (
+          <p className="mt-6 rounded-xl bg-superficie-2 px-4 py-3 text-sm text-texto-suave">
+            Responda questões para gerar sua análise de desempenho por área.
           </p>
         )}
       </section>

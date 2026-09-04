@@ -40,6 +40,76 @@ type QuestaoPlanilha = {
   comentarioCorreta: string
   comentarioErros: string
   status: string
+  tabelaDadosTexto: string
+  graficoSvg: string
+  imagensTexto: string
+}
+
+type TabelaDados = { colunas: string[]; linhas: string[][] }
+type ImagemApoio = { url: string; legenda?: string }
+
+/**
+ * `tabela_dados` guarda {colunas, linhas} como ARRAYS, nunca uma lista de
+ * objetos {coluna: valor} por linha — o Postgres reordena chaves de objeto em
+ * jsonb (por tamanho, depois lexicograficamente), o que embaralharia a ordem
+ * das colunas silenciosamente. Só array preserva ordem de inserção.
+ */
+function lerTabelaDados(texto: string, idPlanilha: string): TabelaDados | null {
+  if (!texto) return null
+  let json: unknown
+  try {
+    json = JSON.parse(texto)
+  } catch (e) {
+    throw new Error(`${idPlanilha}: coluna "Tabela" não é JSON válido (${(e as Error).message})`)
+  }
+  const t = json as Partial<TabelaDados> | null
+  const colunasOk = !!t && Array.isArray(t.colunas) && t.colunas.every((c) => typeof c === 'string')
+  const linhasOk =
+    !!t &&
+    Array.isArray(t.linhas) &&
+    t.linhas.every(
+      (l) => Array.isArray(l) && l.length === t.colunas!.length && l.every((v) => typeof v === 'string'),
+    )
+  if (!colunasOk || !linhasOk) {
+    throw new Error(
+      `${idPlanilha}: coluna "Tabela" deve ser {colunas: string[], linhas: string[][]}, todas as linhas com o mesmo tamanho de colunas`,
+    )
+  }
+  return t as TabelaDados
+}
+
+/** Representação de padrão fisiológico (ECG, espirometria) — não é foto de paciente real. */
+function lerGraficoSvg(texto: string, idPlanilha: string): string | null {
+  if (!texto) return null
+  if (!texto.includes('<svg')) {
+    throw new Error(`${idPlanilha}: coluna "Gráfico SVG" não contém uma tag <svg>`)
+  }
+  return texto
+}
+
+/** Nunca gerada por IA — cada url precisa vir de fonte real e licenciada. */
+function lerImagens(texto: string, idPlanilha: string): ImagemApoio[] | null {
+  if (!texto) return null
+  let json: unknown
+  try {
+    json = JSON.parse(texto)
+  } catch (e) {
+    throw new Error(`${idPlanilha}: coluna "Imagens" não é JSON válido (${(e as Error).message})`)
+  }
+  if (!Array.isArray(json) || json.length === 0) {
+    throw new Error(`${idPlanilha}: coluna "Imagens" deve ser uma lista não vazia de {url, legenda?}`)
+  }
+  return json.map((item, i) => {
+    const url = (item as Partial<ImagemApoio>)?.url
+    if (typeof url !== 'string' || !url) {
+      throw new Error(`${idPlanilha}: imagens[${i}] precisa de "url" (string não vazia)`)
+    }
+    const legenda = (item as Partial<ImagemApoio>).legenda
+    if (legenda !== undefined && typeof legenda !== 'string') {
+      throw new Error(`${idPlanilha}: imagens[${i}].legenda deve ser string`)
+    }
+    return legenda ? { url, legenda } : { url }
+  })
 }
 
 /** PRNG determinístico (mulberry32): mesma seed ⇒ mesma saída, sempre. */
@@ -174,6 +244,10 @@ async function lerPlanilha(caminho: string): Promise<QuestaoPlanilha[]> {
       comentarioCorreta: t(13),
       comentarioErros: t(14),
       status: t(15) || 'Em revisão',
+      // Coluna 16 ("Revisor") é só controle interno da planilha — não vai pro banco.
+      tabelaDadosTexto: t(17),
+      graficoSvg: t(18),
+      imagensTexto: t(19),
     })
   })
 
@@ -189,70 +263,100 @@ async function main() {
   console.log(`Lidas ${questoes.length} questões preenchidas da aba "${ABA}".`)
 
   const antes = contar(questoes.map((q) => q.correta))
-  console.log(`Gabarito ORIGINAL:  ${formatar(antes)}`)
+  console.log(`Gabarito ORIGINAL (todos os simulados):  ${formatar(antes)}`)
 
   // Ordena por id para o embaralhamento não depender da ordem de leitura.
   questoes.sort((a, b) => a.idPlanilha.localeCompare(b.idPlanilha))
 
+  // O rebalanceamento roda POR SIMULADO, nunca no lote combinado: um aluno
+  // faz uma prova de cada vez, então quem precisa fechar ~25/25/25/25 é cada
+  // simulado individual. Embaralhar as 300 questões juntas só garante esse
+  // equilíbrio na MÉDIA dos 3 — um simulado isolado poderia sair 35/20/25/20
+  // enquanto outro compensa, o que reabriria a brecha de "marcar sempre a
+  // mesma letra" que este script existe para fechar.
+  //
+  // Processar os simulados em ordem crescente com o MESMO gerador de números
+  // aleatórios (`rand`), começando do 1, mantém o resultado do Simulado 1
+  // idêntico ao já importado antes de existirem os Simulados 2 e 3: com um
+  // único grupo de 100, o consumo de `rand()` é byte a byte o mesmo do
+  // algoritmo antigo (que também via as 100 questões como um grupo só).
+  const porSimulado = new Map<number, QuestaoPlanilha[]>()
+  for (const q of questoes) {
+    if (!porSimulado.has(q.simulado)) porSimulado.set(q.simulado, [])
+    porSimulado.get(q.simulado)!.push(q)
+  }
+
   const rand = criarRandom(SEED)
-  const alvos = gerarLetrasAlvo(questoes.length, rand)
+  const registros: Record<string, unknown>[] = []
 
-  const registros = questoes.map((q, i) => {
-    const { novas, mapa } = reposicionar(q.alternativas, q.correta, alvos[i], rand)
-    const comentarioErros = remapearComentarioErros(q.comentarioErros, mapa)
+  for (const simulado of [...porSimulado.keys()].sort((a, b) => a - b)) {
+    const grupo = porSimulado.get(simulado)!
+    const alvos = gerarLetrasAlvo(grupo.length, rand)
 
-    // Invariantes: o embaralhamento não pode alterar o conteúdo, só a posição.
-    if (novas[alvos[i]] !== q.alternativas[q.correta]) {
-      throw new Error(`${q.idPlanilha}: alternativa correta se perdeu no reposicionamento`)
-    }
-    const conteudoAntes = [...LETRAS.map((l) => q.alternativas[l])].sort()
-    const conteudoDepois = [...LETRAS.map((l) => novas[l])].sort()
-    if (JSON.stringify(conteudoAntes) !== JSON.stringify(conteudoDepois)) {
-      throw new Error(`${q.idPlanilha}: conjunto de alternativas mudou`)
-    }
-    const letrasCitadas = [...comentarioErros.matchAll(RE_REFERENCIA)]
-      .flatMap((m) => [...m[1].matchAll(/[A-D]/g)].map((l) => l[0]))
-      .sort()
-    const erradasEsperadas = LETRAS.filter((l) => l !== alvos[i]).sort()
-    if (
-      letrasCitadas.length > 0 &&
-      JSON.stringify([...new Set(letrasCitadas)]) !== JSON.stringify(erradasEsperadas)
-    ) {
-      throw new Error(
-        `${q.idPlanilha}: comentário de erros cita ${letrasCitadas} mas as erradas são ${erradasEsperadas}`,
-      )
-    }
+    const registrosDoGrupo = grupo.map((q, i) => {
+      const { novas, mapa } = reposicionar(q.alternativas, q.correta, alvos[i], rand)
+      const comentarioErros = remapearComentarioErros(q.comentarioErros, mapa)
 
-    return {
-      id_planilha: q.idPlanilha,
-      tipo: 'simulado' as const,
-      simulado_numero: q.simulado,
-      numero_na_prova: q.numeroNaProva,
-      area: q.area,
-      subtema: q.subtema || null,
-      dificuldade: q.dificuldade || null,
-      ano_origem: null,
-      fonte: null,
-      enunciado: q.enunciado,
-      alternativa_a: novas.A,
-      alternativa_b: novas.B,
-      alternativa_c: novas.C,
-      alternativa_d: novas.D,
-      resposta_correta: alvos[i],
-      comentario_correta: q.comentarioCorreta || null,
-      comentario_erros: comentarioErros || null,
-      status: q.status,
-    }
-  })
+      // Invariantes: o embaralhamento não pode alterar o conteúdo, só a posição.
+      if (novas[alvos[i]] !== q.alternativas[q.correta]) {
+        throw new Error(`${q.idPlanilha}: alternativa correta se perdeu no reposicionamento`)
+      }
+      const conteudoAntes = [...LETRAS.map((l) => q.alternativas[l])].sort()
+      const conteudoDepois = [...LETRAS.map((l) => novas[l])].sort()
+      if (JSON.stringify(conteudoAntes) !== JSON.stringify(conteudoDepois)) {
+        throw new Error(`${q.idPlanilha}: conjunto de alternativas mudou`)
+      }
+      const letrasCitadas = [...comentarioErros.matchAll(RE_REFERENCIA)]
+        .flatMap((m) => [...m[1].matchAll(/[A-D]/g)].map((l) => l[0]))
+        .sort()
+      const erradasEsperadas = LETRAS.filter((l) => l !== alvos[i]).sort()
+      if (
+        letrasCitadas.length > 0 &&
+        JSON.stringify([...new Set(letrasCitadas)]) !== JSON.stringify(erradasEsperadas)
+      ) {
+        throw new Error(
+          `${q.idPlanilha}: comentário de erros cita ${letrasCitadas} mas as erradas são ${erradasEsperadas}`,
+        )
+      }
 
-  const depois = contar(registros.map((r) => r.resposta_correta))
-  console.log(`Gabarito REBALANCEADO: ${formatar(depois)}`)
+      return {
+        id_planilha: q.idPlanilha,
+        tipo: 'simulado' as const,
+        simulado_numero: q.simulado,
+        numero_na_prova: q.numeroNaProva,
+        area: q.area,
+        subtema: q.subtema || null,
+        dificuldade: q.dificuldade || null,
+        ano_origem: null,
+        fonte: null,
+        enunciado: q.enunciado,
+        alternativa_a: novas.A,
+        alternativa_b: novas.B,
+        alternativa_c: novas.C,
+        alternativa_d: novas.D,
+        resposta_correta: alvos[i],
+        comentario_correta: q.comentarioCorreta || null,
+        comentario_erros: comentarioErros || null,
+        status: q.status,
+        tabela_dados: lerTabelaDados(q.tabelaDadosTexto, q.idPlanilha),
+        grafico_svg: lerGraficoSvg(q.graficoSvg, q.idPlanilha),
+        imagens: lerImagens(q.imagensTexto, q.idPlanilha),
+      }
+    })
+
+    const gabaritoGrupo = contar(registrosDoGrupo.map((r) => r.resposta_correta as string))
+    console.log(`  Simulado ${simulado} rebalanceado: ${formatar(gabaritoGrupo)}`)
+    registros.push(...registrosDoGrupo)
+  }
+
+  const depois = contar(registros.map((r) => r.resposta_correta as string))
+  console.log(`Gabarito REBALANCEADO (todos os simulados): ${formatar(depois)}`)
 
   // Artefatos de auditoria — permitem revisar o resultado sem abrir o banco.
   const destino = resolve('supabase/seed')
   mkdirSync(destino, { recursive: true })
-  writeFileSync(`${destino}/simulado-01.json`, JSON.stringify(registros, null, 2), 'utf8')
-  writeFileSync(`${destino}/simulado-01.sql`, gerarSql(registros), 'utf8')
+  writeFileSync(`${destino}/questoes.json`, JSON.stringify(registros, null, 2), 'utf8')
+  writeFileSync(`${destino}/questoes.sql`, gerarSql(registros), 'utf8')
   console.log(`Artefatos escritos em ${destino}/`)
 
   if (dryRun) {

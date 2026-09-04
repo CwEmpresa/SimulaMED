@@ -69,13 +69,19 @@ export type Database = {
           dificuldade: string | null
           enunciado: string
           fonte: string | null
+          /** Marcação SVG inline de traçado/gráfico esquemático (ECG, espirometria). Opcional. */
+          grafico_svg: string | null
           id: string
           id_planilha: string | null
+          /** Lista [{ url, legenda }] de 0 a N imagens clínicas reais. Nunca gerada por IA. Opcional. */
+          imagens: Json | null
           numero_na_prova: number | null
           resposta_correta: string
           simulado_numero: number | null
           status: string
           subtema: string | null
+          /** Objeto {colunas: string[], linhas: string[][]} — colunas livres. Arrays, não objeto por linha (jsonb reordena chaves). Opcional. */
+          tabela_dados: Json | null
           tipo: string
         }
         Insert: {
@@ -91,13 +97,16 @@ export type Database = {
           dificuldade?: string | null
           enunciado: string
           fonte?: string | null
+          grafico_svg?: string | null
           id?: string
           id_planilha?: string | null
+          imagens?: Json | null
           numero_na_prova?: number | null
           resposta_correta: string
           simulado_numero?: number | null
           status?: string
           subtema?: string | null
+          tabela_dados?: Json | null
           tipo: string
         }
         Update: {
@@ -113,13 +122,16 @@ export type Database = {
           dificuldade?: string | null
           enunciado?: string
           fonte?: string | null
+          grafico_svg?: string | null
           id?: string
           id_planilha?: string | null
+          imagens?: Json | null
           numero_na_prova?: number | null
           resposta_correta?: string
           simulado_numero?: number | null
           status?: string
           subtema?: string | null
+          tabela_dados?: Json | null
           tipo?: string
         }
         Relationships: []
@@ -314,6 +326,24 @@ export type Database = {
           resposta_correta: string | null
           comentario_correta: string | null
           comentario_erros: string | null
+        }
+        Relationships: []
+      }
+      /**
+       * respostas_simulado + usuario_id/simulado_numero da tentativa dona.
+       * Necessária porque caderno_erros é deduplicado entre tentativas e não
+       * guarda qual alternativa foi marcada — esta view resolve isso por
+       * usuário/questão.
+       */
+      respostas_simulado_detalhadas: {
+        Row: {
+          usuario_id: string | null
+          tentativa_id: string | null
+          simulado_numero: number | null
+          questao_id: string | null
+          alternativa_escolhida: string | null
+          correta: boolean | null
+          respondido_em: string | null
         }
         Relationships: []
       }

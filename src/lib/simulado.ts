@@ -12,6 +12,25 @@ export const ALTERNATIVAS = ['A', 'B', 'C', 'D'] as const
 export type Alternativa = (typeof ALTERNATIVAS)[number]
 
 /**
+ * `questoes.tabela_dados`: colunas livres por design — ora 3 (Exame/
+ * Resultado/Referência), ora 4 (Parâmetro/Pré-BD/Pós-BD/Previsto). `colunas`
+ * e `linhas` são arrays (não um objeto {coluna: valor} por linha) de
+ * propósito: o Postgres normaliza jsonb reordenando as chaves de um objeto
+ * (por tamanho, depois lexicograficamente) — só arrays preservam a ordem de
+ * inserção, e a ordem das colunas importa aqui.
+ */
+export type TabelaDados = {
+  colunas: string[]
+  linhas: string[][]
+}
+
+/** Uma imagem de `questoes.imagens` — sempre fonte real e licenciada, nunca gerada por IA. */
+export type ImagemApoio = {
+  url: string
+  legenda?: string
+}
+
+/**
  * Segundos restantes a partir do início registrado no banco.
  * O relógio do cliente nunca é a fonte da verdade — ele só interpola entre
  * renders; quem decide se a prova acabou é sempre o servidor.

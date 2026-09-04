@@ -9,7 +9,7 @@ import { EstadoVazio, botaoPrimario, botaoSecundario } from '@/components/ui/pri
 import { createClient } from '@/lib/supabase/server'
 
 const COLUNAS_SEGURAS =
-  'id, area, subtema, dificuldade, ano_origem, fonte, enunciado, alternativa_a, alternativa_b, alternativa_c, alternativa_d'
+  'id, area, subtema, dificuldade, ano_origem, fonte, enunciado, alternativa_a, alternativa_b, alternativa_c, alternativa_d, tabela_dados, grafico_svg, imagens'
 
 function texto(valor: string | string[] | undefined) {
   return typeof valor === 'string' && valor !== '' ? valor : undefined

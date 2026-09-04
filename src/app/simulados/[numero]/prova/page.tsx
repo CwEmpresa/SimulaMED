@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
 
 import { TelaProva } from '@/components/prova/tela-prova'
-import { SIMULADOS } from '@/lib/simulado'
+import { SIMULADOS, type ImagemApoio, type TabelaDados } from '@/lib/simulado'
 import { createClient } from '@/lib/supabase/server'
 
 export default async function ProvaPage({ params }: PageProps<'/simulados/[numero]/prova'>) {
@@ -43,7 +43,7 @@ export default async function ProvaPage({ params }: PageProps<'/simulados/[numer
     supabase
       .from('questoes')
       .select(
-        'id, numero_na_prova, area, subtema, enunciado, alternativa_a, alternativa_b, alternativa_c, alternativa_d',
+        'id, numero_na_prova, area, subtema, enunciado, alternativa_a, alternativa_b, alternativa_c, alternativa_d, tabela_dados, grafico_svg, imagens',
       )
       .eq('tipo', 'simulado')
       .eq('simulado_numero', simuladoNumero)
@@ -61,7 +61,12 @@ export default async function ProvaPage({ params }: PageProps<'/simulados/[numer
       tentativaId={tentativa.id}
       iniciadoEm={tentativa.iniciado_em}
       simuladoNumero={simuladoNumero}
-      questoes={questoes.map((q) => ({ ...q, numero_na_prova: q.numero_na_prova! }))}
+      questoes={questoes.map((q) => ({
+        ...q,
+        numero_na_prova: q.numero_na_prova!,
+        tabela_dados: q.tabela_dados as TabelaDados | null,
+        imagens: q.imagens as ImagemApoio[] | null,
+      }))}
       respostasIniciais={respostas ?? []}
     />
   )

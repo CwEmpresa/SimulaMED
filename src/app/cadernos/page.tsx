@@ -3,17 +3,12 @@ import { redirect } from 'next/navigation'
 
 import { AvisoConteudo } from '@/components/aviso-conteudo'
 import { CascaApp } from '@/components/casca-app'
+import { ApoioQuestao } from '@/components/questao/apoio-questao'
+import { DetalheQuestao } from '@/components/revisao/detalhe-questao'
 import { IconeCaderno } from '@/components/ui/icones'
 import { EstadoVazio, botaoPrimario } from '@/components/ui/primitivos'
-import { ALTERNATIVAS } from '@/lib/simulado'
+import type { Alternativa, ImagemApoio, TabelaDados } from '@/lib/simulado'
 import { createClient } from '@/lib/supabase/server'
-
-const CAMPO_ALTERNATIVA = {
-  A: 'alternativa_a',
-  B: 'alternativa_b',
-  C: 'alternativa_c',
-  D: 'alternativa_d',
-} as const
 
 const ABAS = [
   { chave: 'todos', rotulo: 'Todos' },
@@ -39,7 +34,7 @@ export default async function CadernosPage({ searchParams }: PageProps<'/caderno
   let query = supabase
     .from('caderno_erros')
     .select(
-      'id, origem, criado_em, questoes (id, numero_na_prova, simulado_numero, area, subtema, enunciado, alternativa_a, alternativa_b, alternativa_c, alternativa_d)',
+      'id, origem, criado_em, questoes (id, numero_na_prova, simulado_numero, area, subtema, enunciado, alternativa_a, alternativa_b, alternativa_c, alternativa_d, tabela_dados, grafico_svg, imagens)',
     )
     .order('criado_em', { ascending: false })
 
@@ -48,15 +43,57 @@ export default async function CadernosPage({ searchParams }: PageProps<'/caderno
   const { data: itens } = await query
 
   const idsQuestoes = (itens ?? []).map((i) => i.questoes?.id).filter((id): id is string => !!id)
-  const { data: gabaritos } = idsQuestoes.length
-    ? await supabase
-        .from('gabaritos_liberados')
-        .select('questao_id, resposta_correta, comentario_correta, comentario_erros')
-        .in('questao_id', idsQuestoes)
-    : { data: [] }
+  const idsSimulado = (itens ?? [])
+    .filter((i) => i.origem === 'simulado')
+    .map((i) => i.questoes?.id)
+    .filter((id): id is string => !!id)
+
+  const [{ data: gabaritos }, { data: escolhidasBanco }, { data: escolhidasSimulado }] =
+    await Promise.all([
+      idsQuestoes.length
+        ? supabase
+            .from('gabaritos_liberados')
+            .select('questao_id, resposta_correta, comentario_correta, comentario_erros')
+            .in('questao_id', idsQuestoes)
+        : Promise.resolve({ data: [] }),
+      supabase
+        .from('respostas_banco')
+        .select('questao_id, alternativa_escolhida')
+        .eq('usuario_id', user.id),
+      // caderno_erros não guarda qual tentativa gerou a entrada nem qual
+      // alternativa foi marcada (é deduplicado entre tentativas do mesmo
+      // simulado) — por isso a resposta marcada vem desta view, filtrada só
+      // pelas questões erradas de fato (a migração já garante que só entram
+      // erros respondidos; aqui repetimos o filtro por segurança/clareza).
+      idsSimulado.length
+        ? supabase
+            .from('respostas_simulado_detalhadas')
+            .select('questao_id, alternativa_escolhida, respondido_em')
+            .eq('usuario_id', user.id)
+            .eq('correta', false)
+            .not('alternativa_escolhida', 'is', null)
+            .in('questao_id', idsSimulado)
+            .order('respondido_em', { ascending: false })
+        : Promise.resolve({ data: [] }),
+    ])
 
   const gabaritoPorQuestao = new Map(
     (gabaritos ?? []).map((g) => [g.questao_id, g]),
+  )
+
+  // Se o simulado foi refeito, pode haver mais de uma resposta errada para a
+  // mesma questão ao longo do tempo — fica a mais recente (a lista já vem
+  // ordenada por respondido_em decrescente, então o primeiro Map.set vale).
+  const escolhaSimuladoPorQuestao = new Map<string, string>()
+  for (const r of escolhidasSimulado ?? []) {
+    if (!escolhaSimuladoPorQuestao.has(r.questao_id!) && r.alternativa_escolhida) {
+      escolhaSimuladoPorQuestao.set(r.questao_id!, r.alternativa_escolhida)
+    }
+  }
+  const escolhaBancoPorQuestao = new Map(
+    (escolhidasBanco ?? [])
+      .filter((r) => r.alternativa_escolhida)
+      .map((r) => [r.questao_id, r.alternativa_escolhida as string]),
   )
 
   const porArea = new Map<string, NonNullable<typeof itens>>()
@@ -129,6 +166,11 @@ export default async function CadernosPage({ searchParams }: PageProps<'/caderno
                 {itensDaArea.map((item) => {
                   const q = item.questoes!
                   const gabarito = gabaritoPorQuestao.get(q.id)
+                  const respostaEscolhida =
+                    item.origem === 'banco'
+                      ? (escolhaBancoPorQuestao.get(q.id) as Alternativa | undefined)
+                      : (escolhaSimuladoPorQuestao.get(q.id) as Alternativa | undefined)
+
                   return (
                     <li
                       key={item.id}
@@ -146,36 +188,19 @@ export default async function CadernosPage({ searchParams }: PageProps<'/caderno
 
                       <p className="mt-3 text-sm leading-relaxed">{q.enunciado}</p>
 
-                      <ul className="mt-4 flex flex-col gap-1.5">
-                        {ALTERNATIVAS.map((letra) => {
-                          const texto = q[CAMPO_ALTERNATIVA[letra]]
-                          const correta = gabarito?.resposta_correta === letra
-                          return (
-                            <li
-                              key={letra}
-                              className={`flex gap-2.5 rounded-lg px-3 py-2 text-sm ${
-                                correta
-                                  ? 'bg-acerto-suave text-acerto'
-                                  : 'text-texto-suave'
-                              }`}
-                            >
-                              <span className="font-semibold">{letra}</span>
-                              <span className="leading-relaxed">{texto}</span>
-                            </li>
-                          )
-                        })}
-                      </ul>
+                      <ApoioQuestao
+                        tabelaDados={q.tabela_dados as TabelaDados | null}
+                        graficoSvg={q.grafico_svg}
+                        imagens={q.imagens as ImagemApoio[] | null}
+                      />
 
-                      {gabarito?.comentario_correta && (
-                        <p className="mt-4 border-l-2 border-acento pl-3 text-sm leading-relaxed">
-                          {gabarito.comentario_correta}
-                        </p>
-                      )}
-                      {gabarito?.comentario_erros && (
-                        <p className="mt-2 pl-3 text-sm leading-relaxed text-texto-suave">
-                          {gabarito.comentario_erros}
-                        </p>
-                      )}
+                      <DetalheQuestao
+                        questao={q}
+                        respostaCorreta={(gabarito?.resposta_correta as Alternativa) ?? null}
+                        respostaEscolhida={respostaEscolhida ?? null}
+                        comentarioCorreta={gabarito?.comentario_correta}
+                        comentarioErros={gabarito?.comentario_erros}
+                      />
                     </li>
                   )
                 })}

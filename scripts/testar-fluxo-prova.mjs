@@ -184,10 +184,40 @@ try {
     'soma dos totais por área = 100 (em branco contam como erro)',
   )
 
+  // Caderno de Erros: só o que foi respondido e saiu errado. As 10 em branco
+  // (100 - CERTAS - ERRADAS) NÃO entram — é exatamente o bug relatado.
   const { count: totalCaderno } = await aluno.cliente
     .from('caderno_erros')
     .select('*', { count: 'exact', head: true })
-  checar(totalCaderno === 100 - CERTAS, `caderno recebeu os ${100 - CERTAS} erros e brancos`, `(veio ${totalCaderno})`)
+  checar(totalCaderno === ERRADAS, `caderno recebe só as ${ERRADAS} erradas, não as em branco`, `(veio ${totalCaderno})`)
+
+  const idsErradas = respostas
+    .filter((r) => r.alternativa_escolhida !== gabarito.find((q) => q.id === r.questao_id).resposta_correta)
+    .map((r) => r.questao_id)
+  const { data: itensCaderno } = await aluno.cliente.from('caderno_erros').select('questao_id')
+  const idsNoCaderno = new Set((itensCaderno ?? []).map((i) => i.questao_id))
+  checar(
+    idsErradas.every((id) => idsNoCaderno.has(id)) && idsNoCaderno.size === idsErradas.length,
+    'o caderno contém exatamente as questões erradas respondidas, nem uma a mais',
+  )
+
+  const idsEmBranco = gabarito.map((q) => q.id).filter((id) => !respostas.some((r) => r.questao_id === id))
+  checar(
+    idsEmBranco.every((id) => !idsNoCaderno.has(id)),
+    'nenhuma questão em branco entrou no caderno',
+  )
+
+  // A resposta marcada precisa estar disponível via a view de detalhe, para a
+  // tela de Cadernos poder mostrar "sua resposta" em cada erro.
+  const { data: detalhes } = await aluno.cliente
+    .from('respostas_simulado_detalhadas')
+    .select('questao_id, alternativa_escolhida, correta')
+    .in('questao_id', idsErradas)
+  checar(
+    (detalhes ?? []).length === idsErradas.length &&
+      detalhes.every((d) => d.correta === false && !!d.alternativa_escolhida),
+    'respostas_simulado_detalhadas devolve a resposta marcada de cada erro',
+  )
 
   // ── 6. gabarito liberado só depois ────────────────────────────────────────
   console.log('\n6. Liberação do gabarito após finalizar')
@@ -330,6 +360,38 @@ try {
     p_tentativa_id: tentativa.id,
   })
   checar(!!erroAnon, 'sem sessão (auth.uid() nulo): execução recusada')
+
+  // ── 12. simulado finalizado sem responder nada ────────────────────────────
+  // O bug relatado era exatamente este: com zero respostas, todas as áreas
+  // ficam em 0% e o caderno acabava recebendo as 100 questões como "erro".
+  console.log('\n12. Simulado finalizado sem nenhuma resposta')
+  const { data: tentativaZero } = await outro.cliente
+    .from('tentativas_simulado')
+    .insert({ usuario_id: outro.id, simulado_numero: 1 })
+    .select('id')
+    .single()
+
+  const { data: resultadoZero } = await outro.cliente.rpc('finalizar_tentativa', {
+    p_tentativa_id: tentativaZero.id,
+  })
+  const rZero = Array.isArray(resultadoZero) ? resultadoZero[0] : resultadoZero
+  checar(Number(rZero.nota) === 0, 'nota = 0 quando nada é respondido')
+
+  const { count: cadernoZero } = await outro.cliente
+    .from('caderno_erros')
+    .select('*', { count: 'exact', head: true })
+  checar(cadernoZero === 0, 'caderno de erros fica vazio quando nada foi respondido', `(veio ${cadernoZero})`)
+
+  const { data: tentativaZeroFinal } = await outro.cliente
+    .from('tentativas_simulado')
+    .select('percentual_por_area')
+    .eq('id', tentativaZero.id)
+    .single()
+  const areasZero = Object.values(tentativaZeroFinal.percentual_por_area ?? {})
+  checar(
+    areasZero.length === 5 && areasZero.every((a) => a.percentual === 0),
+    'as 5 áreas ficam em 0% quando nada foi respondido',
+  )
 } finally {
   for (const id of criados) await admin.auth.admin.deleteUser(id)
   if (criados.length) console.log(`\n${criados.length} usuário(s) de teste removido(s).`)

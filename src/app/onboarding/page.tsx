@@ -24,7 +24,7 @@ export default async function OnboardingPage() {
   return (
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center gap-6 px-5 py-12">
       <header>
-        <h1 className="text-sm font-medium text-texto-suave">Reta Final ENAMED/ENARE</h1>
+        <h1 className="text-sm font-medium text-texto-suave">SimulaMed ENAMED/ENARE</h1>
         <p className="mt-1 text-lg">
           {perfil?.nome ? `Boas-vindas, ${perfil.nome.split(' ')[0]}.` : 'Boas-vindas.'}{' '}
           <span className="text-texto-suave">São quatro ferramentas, e elas se conectam.</span>

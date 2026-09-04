@@ -25,7 +25,7 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Reta Final ENAMED/ENARE',
+  title: 'SimulaMed ENAMED/ENARE',
   description: 'Faça a prova antes da prova. Simulados cronometrados, banco de questões e cadernos de erro para o ENAMED/ENARE.',
 }
 

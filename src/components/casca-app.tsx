@@ -35,17 +35,9 @@ export function CascaApp({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-20 border-b border-borda bg-superficie/85 backdrop-blur-md">
         <div className="mx-auto flex w-full max-w-6xl items-center gap-6 px-5 py-3">
-          <Link
-            href="/dashboard"
-            className="flex shrink-0 items-center gap-2.5 font-display text-sm font-semibold tracking-tight"
-          >
-            <span
-              aria-hidden="true"
-              className="flex size-8 items-center justify-center rounded-lg bg-acento text-acento-texto shadow-[var(--sombra-acento)]"
-            >
-              <IconeSimulado className="size-[18px]" />
-            </span>
-            <span className="hidden sm:inline">Reta Final</span>
+          <Link href="/dashboard" className="flex shrink-0 items-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo-simulamed.png" alt="SimulaMed" className="h-6 w-auto sm:h-7" />
           </Link>
 
           <nav aria-label="Seções" className="hidden flex-1 items-center gap-1 md:flex">

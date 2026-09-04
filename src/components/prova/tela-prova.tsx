@@ -4,9 +4,10 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
 
 import { alternarRevisao, finalizarSimulado, salvarResposta } from '@/app/actions/simulado'
+import { ApoioQuestao } from '@/components/questao/apoio-questao'
 import { IconeAlerta, IconeSeta } from '@/components/ui/icones'
 import { botaoPrimario, botaoSecundario } from '@/components/ui/primitivos'
-import { ALTERNATIVAS, type Alternativa } from '@/lib/simulado'
+import { ALTERNATIVAS, type Alternativa, type ImagemApoio, type TabelaDados } from '@/lib/simulado'
 
 import { Cronometro } from './cronometro'
 import { NavegadorQuestoes, type SituacaoQuestao } from './navegador-questoes'
@@ -23,6 +24,9 @@ export type QuestaoProva = {
   alternativa_b: string
   alternativa_c: string
   alternativa_d: string
+  tabela_dados: TabelaDados | null
+  grafico_svg: string | null
+  imagens: ImagemApoio[] | null
 }
 
 /** Mapa explícito: indexar com `alternativa_${letra.toLowerCase()}` produz um
@@ -148,22 +152,31 @@ export function TelaProva({
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-20 border-b border-borda bg-superficie/90 backdrop-blur-md">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-3">
-          {/* Em 375px o cronômetro e o botão consomem a linha: o rótulo encolhe
-              em vez de truncar, para o aluno nunca perder de vista em que
-              simulado e em que questão está. */}
-          <div className="shrink-0">
-            <p className="font-display text-sm font-semibold tracking-tight">
-              Simulado {simuladoNumero}
-            </p>
-            <p className="text-xs text-texto-suave tabular-nums">
-              <span className="sm:hidden">
-                {indice + 1}/{questoes.length}
-              </span>
-              <span className="hidden sm:inline">
-                Questão {indice + 1} de {questoes.length}
-              </span>
-            </p>
+        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
+          {/* Identidade própria do Modo Prova — marca do produto (nunca de
+              terceiro) + tarja "documento oficial de exame". Em 375px o
+              cronômetro e o botão consomem a linha: o rótulo encolhe em vez de
+              truncar, para o aluno nunca perder de vista em que simulado e em
+              que questão está. */}
+          <div className="flex min-w-0 items-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo-simulamed.png" alt="SimulaMed" className="h-5 w-auto shrink-0 sm:h-6" />
+            <div className="min-w-0 border-l border-borda pl-3">
+              <p
+                className="inline-flex items-center gap-1.5 rounded-full bg-contraste-fundo px-2.5 py-0.5
+                           font-display text-[10px] font-semibold tracking-wide text-contraste-texto uppercase"
+              >
+                Modo Prova <span aria-hidden="true">·</span> Simulado Nº {simuladoNumero}
+              </p>
+              <p className="mt-1 text-xs text-texto-suave tabular-nums">
+                <span className="sm:hidden">
+                  {indice + 1}/{questoes.length}
+                </span>
+                <span className="hidden sm:inline">
+                  Questão {indice + 1} de {questoes.length}
+                </span>
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
@@ -202,14 +215,16 @@ export function TelaProva({
               transition={{ duration: 0.18, ease: 'easeOut' }}
               className="rounded-2xl border border-borda bg-superficie p-5 shadow-[var(--sombra-1)] sm:p-7"
             >
-              <div className="flex flex-wrap items-center gap-2 text-xs text-texto-suave">
-                <span className="rounded bg-superficie-2 px-2 py-0.5 font-medium">
-                  {questao.area}
-                </span>
-                {questao.subtema && <span>{questao.subtema}</span>}
-              </div>
+              {/* Nenhuma pista de área/subtema perto da questão: a prova real não
+                  entrega o tema antes de o aluno responder, e mostrar isso aqui
+                  reduziria a dificuldade do simulado. */}
+              <h1 className="text-[15px] leading-relaxed sm:text-lg">{questao.enunciado}</h1>
 
-              <h1 className="mt-4 text-[15px] leading-relaxed sm:text-lg">{questao.enunciado}</h1>
+              <ApoioQuestao
+                tabelaDados={questao.tabela_dados}
+                graficoSvg={questao.grafico_svg}
+                imagens={questao.imagens}
+              />
 
               <fieldset className="mt-6">
                 <legend className="sr-only">Alternativas</legend>

@@ -4,7 +4,8 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useState } from 'react'
 
 import { alternarFavorito, responderBanco } from '@/app/actions/banco'
-import { ALTERNATIVAS, type Alternativa } from '@/lib/simulado'
+import { ApoioQuestao } from '@/components/questao/apoio-questao'
+import { ALTERNATIVAS, type Alternativa, type ImagemApoio, type TabelaDados } from '@/lib/simulado'
 
 export type QuestaoBanco = {
   id: string
@@ -18,6 +19,9 @@ export type QuestaoBanco = {
   alternativa_b: string
   alternativa_c: string
   alternativa_d: string
+  tabela_dados: TabelaDados | null
+  grafico_svg: string | null
+  imagens: ImagemApoio[] | null
 }
 
 export type EstadoInicial = {
@@ -167,6 +171,12 @@ export function PraticarBanco({
         </div>
 
         <h2 className="mt-4 text-base leading-relaxed sm:text-lg">{questao.enunciado}</h2>
+
+        <ApoioQuestao
+          tabelaDados={questao.tabela_dados}
+          graficoSvg={questao.grafico_svg}
+          imagens={questao.imagens}
+        />
 
         <div className="mt-6 flex flex-col gap-2">
           {ALTERNATIVAS.map((letra) => {
