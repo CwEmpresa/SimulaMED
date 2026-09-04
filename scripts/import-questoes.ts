@@ -19,13 +19,13 @@ import { config } from 'dotenv'
 import { writeFileSync, mkdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 
+import { LETRAS, RE_REFERENCIA, contar, formatar, letrasCitadas, type Letra } from './lib/gabarito'
+
 // O Next lê .env.local sozinho; um script avulso precisa apontar o caminho.
 config({ path: resolve(process.cwd(), '.env.local') })
 
 const ABA = 'Simulados (300)'
 const SEED = 20260902 // trocar a seed muda todo o embaralhamento — mantenha fixa
-const LETRAS = ['A', 'B', 'C', 'D'] as const
-type Letra = (typeof LETRAS)[number]
 
 type QuestaoPlanilha = {
   idPlanilha: string
@@ -178,8 +178,6 @@ function reposicionar(
  * Os trechos são reordenados por letra depois do remapeamento, para o comentário
  * continuar lendo em ordem alfabética.
  */
-const RE_REFERENCIA = /(?<![A-Za-zÀ-ÿ])([A-D](?:\s*(?:,|\se\s)\s*[A-D])*)\s*:/g
-
 function remapearComentarioErros(texto: string, mapa: Record<Letra, Letra>): string {
   if (!texto) return texto
 
@@ -306,16 +304,11 @@ async function main() {
       if (JSON.stringify(conteudoAntes) !== JSON.stringify(conteudoDepois)) {
         throw new Error(`${q.idPlanilha}: conjunto de alternativas mudou`)
       }
-      const letrasCitadas = [...comentarioErros.matchAll(RE_REFERENCIA)]
-        .flatMap((m) => [...m[1].matchAll(/[A-D]/g)].map((l) => l[0]))
-        .sort()
+      const citadas = letrasCitadas(comentarioErros)
       const erradasEsperadas = LETRAS.filter((l) => l !== alvos[i]).sort()
-      if (
-        letrasCitadas.length > 0 &&
-        JSON.stringify([...new Set(letrasCitadas)]) !== JSON.stringify(erradasEsperadas)
-      ) {
+      if (citadas.length > 0 && JSON.stringify(citadas) !== JSON.stringify(erradasEsperadas)) {
         throw new Error(
-          `${q.idPlanilha}: comentário de erros cita ${letrasCitadas} mas as erradas são ${erradasEsperadas}`,
+          `${q.idPlanilha}: comentário de erros cita ${citadas} mas as erradas são ${erradasEsperadas}`,
         )
       }
 
@@ -380,14 +373,6 @@ async function main() {
   if (error) throw error
 
   console.log(`Upsert concluído: ${count ?? registros.length} questões no banco.`)
-}
-
-function contar(letras: string[]) {
-  return letras.reduce<Record<string, number>>((acc, l) => ((acc[l] = (acc[l] ?? 0) + 1), acc), {})
-}
-
-function formatar(c: Record<string, number>) {
-  return LETRAS.map((l) => `${l}=${c[l] ?? 0}`).join('  ')
 }
 
 function gerarSql(registros: Record<string, unknown>[]) {

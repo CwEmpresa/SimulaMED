@@ -127,7 +127,15 @@ export default async function DashboardPage() {
 
   const simuladosConcluidos = new Set(finalizadas.map((t) => t.simulado_numero)).size
   const totalQuestoesRespondidas = (totalSimuladoRespondidas ?? 0) + doBanco.length
-  const percentualBanco = totalBanco ? Math.round((100 * doBanco.length) / totalBanco) : null
+
+  // O anel mostra APROVEITAMENTO, não "quanto do banco você já fez". Um
+  // percentual de cobertura entregaria o tamanho do acervo por divisão (3
+  // respondidas marcando 1% ⇒ 300 questões), e o total é informação de
+  // produção. Aproveitamento também é a métrica que o aluno pode agir sobre.
+  const acertosBanco = doBanco.filter((r) => r.correta).length
+  const aproveitamentoBanco = doBanco.length
+    ? Math.round((100 * acertosBanco) / doBanco.length)
+    : null
 
   const agregados = calcularDesempenhoPorArea(finalizadas, doBanco)
   const analiseArea = analisarAreaMaisFraca(agregados)
@@ -295,14 +303,16 @@ export default async function DashboardPage() {
         <section className="mt-4 grid gap-4 sm:grid-cols-3">
           <div className="flex flex-col items-center justify-center rounded-2xl border border-borda bg-superficie p-6 text-center shadow-[var(--sombra-1)]">
             <AnelProgresso
-              percentual={percentualBanco}
-              rotulo="Banco de questões respondido"
-              valorCentral={percentualBanco === null ? '—' : `${percentualBanco}%`}
+              percentual={aproveitamentoBanco}
+              rotulo="Aproveitamento no banco"
+              valorCentral={aproveitamentoBanco === null ? '—' : `${aproveitamentoBanco}%`}
             />
             <p className="mt-3 text-xs text-texto-fraco">
-              {totalBanco
-                ? `${doBanco.length} de ${totalBanco} questões`
-                : 'banco ainda em produção'}
+              {!totalBanco
+                ? 'banco ainda em produção'
+                : doBanco.length === 0
+                  ? 'nenhuma questão respondida ainda'
+                  : `${acertosBanco} de ${doBanco.length} ${doBanco.length === 1 ? 'questão' : 'questões'}`}
             </p>
           </div>
 

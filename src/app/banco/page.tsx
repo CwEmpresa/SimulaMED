@@ -108,9 +108,12 @@ export default async function BancoPage({ searchParams }: PageProps<'/banco'>) {
 
   return (
     <Moldura>
+      {/* Mostra só o que o aluno já fez, nunca o tamanho do acervo: o total é
+          informação de produção, e expor "12 de 300" transforma o banco numa
+          barra de progresso que ele nunca vai encher — desanima em vez de puxar. */}
       <p className="text-sm text-texto-suave">
-        <span className="tabular-nums">{respondidas.size}</span> de{' '}
-        <span className="tabular-nums">{totalNoBanco}</span> questões já respondidas.
+        <span className="tabular-nums">{respondidas.size}</span>{' '}
+        {respondidas.size === 1 ? 'questão já respondida' : 'questões já respondidas'}.
       </p>
 
       {/* No telefone a questão vem primeiro: rolar por cinco filtros antes de
@@ -142,6 +145,7 @@ export default async function BancoPage({ searchParams }: PageProps<'/banco'>) {
             <PraticarBanco
               key={`${fArea}-${fSubtema}-${fAno}-${fStatus}-${fFavoritas}`}
               questoes={questoes}
+              mostrarTotal={!!(fArea || fSubtema || fAno || fStatus || fFavoritas)}
               estadoInicial={(respostas ?? []).map((r) => ({
                 questao_id: r.questao_id,
                 alternativa_escolhida: r.alternativa_escolhida,
@@ -187,7 +191,7 @@ function BancoVazio() {
     <EstadoVazio
       icone={<IconeEmProducao className="size-7" />}
       titulo="Banco de questões em produção"
-      descricao="São 500 questões comentadas sendo escritas e revisadas agora, com filtros por área, subtema e ano. Elas aparecem aqui automaticamente assim que ficarem prontas — sem precisar de nada da sua parte."
+      descricao="As questões comentadas estão sendo escritas e revisadas agora, com filtros por área, subtema e ano. Elas aparecem aqui automaticamente assim que ficarem prontas — sem precisar de nada da sua parte."
       acoes={
         <>
           <Link href="/simulados" className={botaoPrimario}>

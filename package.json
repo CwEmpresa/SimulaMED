@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "import:questoes": "tsx scripts/import-questoes.ts",
+    "import:banco": "tsx scripts/import-banco.ts",
     "verificar:import": "node --env-file=.env.local scripts/verificar-import.mjs",
     "testar:prova": "node --env-file=.env.local scripts/testar-fluxo-prova.mjs",
     "testar:banco": "node --env-file=.env.local scripts/testar-banco.mjs",

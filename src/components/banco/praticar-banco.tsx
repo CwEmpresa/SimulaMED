@@ -57,10 +57,18 @@ export function PraticarBanco({
   questoes,
   estadoInicial,
   correcoesIniciais,
+  mostrarTotal,
 }: {
   questoes: QuestaoBanco[]
   estadoInicial: EstadoInicial[]
   correcoesIniciais: CorrecaoInicial[]
+  /**
+   * Só é verdadeiro quando há filtro ativo. Sem filtro, `questoes.length` É o
+   * tamanho do acervo, e exibi-lo entregaria um número que é de produção, não
+   * do aluno. Com filtro, o total passa a descrever a pilha que ele mesmo
+   * montou — aí ele ajuda a se localizar em vez de medir o produto.
+   */
+  mostrarTotal: boolean
 }) {
   const [indice, setIndice] = useState(0)
   const [correcoes, setCorrecoes] = useState<Record<string, Correcao>>(() =>
@@ -139,7 +147,8 @@ export function PraticarBanco({
     <div>
       <div className="flex items-center justify-between gap-3 text-sm text-texto-suave">
         <span className="tabular-nums">
-          Questão {indice + 1} de {questoes.length}
+          Questão {indice + 1}
+          {mostrarTotal && ` de ${questoes.length}`}
         </span>
         <button
           type="button"
