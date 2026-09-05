@@ -28,9 +28,9 @@ export default function TermosDeUsoPage() {
 
       <div className="space-y-6 text-sm leading-relaxed text-texto">
         <p>
-          Estes Termos de Uso regulam o acesso e uso da plataforma {NOME_PRODUTO} ("Plataforma"),
-          operada por [RAZÃO SOCIAL], CNPJ [CNPJ], com sede em [ENDEREÇO] ("nós"). Ao criar uma
-          conta ou usar a Plataforma, você ("aluno") concorda com estes termos.
+          Estes Termos de Uso regulam o acesso e uso da plataforma {NOME_PRODUTO} (“Plataforma”),
+          operada por [RAZÃO SOCIAL], CNPJ [CNPJ], com sede em [ENDEREÇO] (“nós”). Ao criar uma
+          conta ou usar a Plataforma, você (“aluno”) concorda com estes termos.
         </p>
 
         <section>
@@ -45,10 +45,10 @@ export default function TermosDeUsoPage() {
         <section>
           <h2 className="font-display text-base font-semibold">2. Cadastro e acesso</h2>
           <p className="mt-2">
-            O acesso é vinculado à sua compra do produto correspondente. O login é feito por
-            link de acesso enviado ao e-mail cadastrado ("magic link"), sem senha. Você é
-            responsável por manter o acesso à caixa de e-mail usada no cadastro e por toda
-            atividade realizada na sua conta.
+            O acesso é liberado automaticamente quando sua compra é aprovada. Para entrar, basta
+            informar o e-mail usado na compra em nossa tela de acesso — não há senha nem link
+            enviado por e-mail. Você é responsável por manter o e-mail usado na compra sob seu
+            controle e por toda atividade realizada na sua conta.
           </p>
         </section>
 

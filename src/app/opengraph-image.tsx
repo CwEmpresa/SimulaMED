@@ -32,7 +32,7 @@ export default async function Image() {
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={logoSrc} width={LARGURA_LOGO} height={ALTURA_LOGO} />
+        <img src={logoSrc} width={LARGURA_LOGO} height={ALTURA_LOGO} alt={NOME_PRODUTO} />
         <div
           style={{
             marginTop: 40,

@@ -18,6 +18,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      acesso_tentativas: {
+        Row: {
+          criado_em: string
+          email: string
+          id: string
+          ip: string | null
+        }
+        Insert: {
+          criado_em?: string
+          email: string
+          id?: string
+          ip?: string | null
+        }
+        Update: {
+          criado_em?: string
+          email?: string
+          id?: string
+          ip?: string | null
+        }
+        Relationships: []
+      }
       caderno_erros: {
         Row: {
           criado_em: string

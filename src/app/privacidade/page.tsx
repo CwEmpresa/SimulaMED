@@ -29,7 +29,7 @@ export default function PoliticaDePrivacidadePage() {
       <div className="space-y-6 text-sm leading-relaxed text-texto">
         <p>
           Esta política explica quais dados a {NOME_PRODUTO}, operada por [RAZÃO SOCIAL], CNPJ
-          [CNPJ] ("nós"), coleta, para que usa e quais direitos você tem sobre eles, em linha com
+          [CNPJ] (“nós”), coleta, para que usa e quais direitos você tem sobre eles, em linha com
           a Lei Geral de Proteção de Dados (LGPD, Lei 13.709/2018).
         </p>
 

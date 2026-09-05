@@ -16,6 +16,7 @@
     "testar:prova": "node --env-file=.env.local scripts/testar-fluxo-prova.mjs",
     "testar:banco": "node --env-file=.env.local scripts/testar-banco.mjs",
     "testar:conta": "node --env-file=.env.local scripts/testar-conta.mjs",
+    "testar:acesso": "node --env-file=.env.local scripts/testar-acesso.mjs",
     "testar:area-fraca": "tsx scripts/testar-area-mais-fraca.mjs",
     "dev:usuario": "node --env-file=.env.local scripts/criar-usuario-dev.mjs"
   },

@@ -3,19 +3,25 @@ import { NextResponse } from 'next/server'
 import { assinaturaValida, interpretarEventoLowify } from '@/lib/lowify'
 import { createAdminClient } from '@/lib/supabase/admin'
 
+const STATUS_REVOGA_ACESSO = new Set(['reembolsado', 'chargeback', 'cancelado'])
+
 /**
- * Webhook da Lowify: vincula uma compra à conta correspondente (por e-mail).
+ * Webhook da Lowify: única fonte que libera (ou revoga) acesso ao SimulaMED.
  *
- * Duas direções são possíveis:
- * - conta já existe (cadastro manual/convite anterior) → este handler acha o
- *   usuário pelo e-mail e marca `usuarios.acesso_liberado_em` na hora;
- * - conta ainda não existe (aluno comprou antes de se cadastrar) → a compra
- *   fica salva com `usuario_id` nulo, e o trigger `handle_new_user` (ver
- *   migração `12_vinculo_compra_lowify`) faz o vínculo quando a conta for
- *   criada pelo magic link.
+ * Não existe mais cadastro manual/convite nem magic link — o aluno só entra
+ * digitando o e-mail em /login (ver src/app/actions/acesso.ts), que confere
+ * `usuarios.acesso_liberado_em`. Essa marca só é escrita aqui:
  *
- * Idempotente por `evento_id`: reentrega do mesmo evento (comum em webhooks)
- * faz upsert, nunca duplica nem libera acesso duas vezes.
+ * - `status === 'pago'`: acha a conta pelo e-mail ou CRIA (sem enviar
+ *   e-mail nenhum: `admin.auth.admin.createUser` com `email_confirm: true`,
+ *   o mesmo mecanismo já usado por scripts/criar-usuario-dev.mjs) e marca
+ *   `acesso_liberado_em` se ainda não estava marcada.
+ * - `status` em reembolsado/chargeback/cancelado: limpa `acesso_liberado_em`
+ *   se a conta existir — a partir da próxima requisição o middleware
+ *   (src/lib/supabase/middleware.ts) já desloga e barra o acesso.
+ *
+ * Idempotente por `evento_id`: reentrega do mesmo evento faz upsert, nunca
+ * duplica nem processa duas vezes.
  *
  * NÃO ESTÁ PRONTO PARA PRODUÇÃO: `interpretarEventoLowify` (src/lib/lowify.ts)
  * assume nomes de campo prováveis, não confirmados contra a documentação real
@@ -42,14 +48,31 @@ export async function POST(request: Request) {
   }
 
   const admin = createAdminClient()
+  const email = evento.email.toLowerCase()
 
   // eq (não ilike): o Supabase Auth já normaliza e-mail para minúsculas no
   // cadastro, e ilike trataria '%'/'_' no e-mail como curinga de LIKE.
   const { data: usuarioExistente } = await admin
     .from('usuarios')
     .select('id, acesso_liberado_em')
-    .eq('email', evento.email.toLowerCase())
+    .eq('email', email)
     .maybeSingle()
+
+  let usuarioId = usuarioExistente?.id ?? null
+
+  // Só cria conta nova numa compra aprovada — é o webhook que decide quem
+  // existe no sistema, nunca a tela de acesso.
+  if (!usuarioId && evento.status === 'pago') {
+    const { data: criado, error: erroCriar } = await admin.auth.admin.createUser({
+      email,
+      email_confirm: true,
+    })
+    if (erroCriar || !criado.user) {
+      console.error('Falha ao criar conta para compra aprovada:', erroCriar?.message)
+      return NextResponse.json({ erro: 'falha_ao_criar_conta' }, { status: 500 })
+    }
+    usuarioId = criado.user.id
+  }
 
   const { error: erroCompra } = await admin.from('compras').upsert(
     {
@@ -57,7 +80,7 @@ export async function POST(request: Request) {
       email: evento.email,
       produto: evento.produto,
       status: evento.status,
-      usuario_id: usuarioExistente?.id ?? null,
+      usuario_id: usuarioId,
       payload_bruto: payload,
     },
     { onConflict: 'evento_id' },
@@ -68,11 +91,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ erro: 'falha_ao_gravar' }, { status: 500 })
   }
 
-  if (usuarioExistente && evento.status === 'pago' && !usuarioExistente.acesso_liberado_em) {
-    await admin
-      .from('usuarios')
-      .update({ acesso_liberado_em: new Date().toISOString() })
-      .eq('id', usuarioExistente.id)
+  if (usuarioId) {
+    if (evento.status === 'pago') {
+      await admin
+        .from('usuarios')
+        .update({ acesso_liberado_em: new Date().toISOString() })
+        .eq('id', usuarioId)
+        .is('acesso_liberado_em', null)
+    } else if (STATUS_REVOGA_ACESSO.has(evento.status)) {
+      await admin.from('usuarios').update({ acesso_liberado_em: null }).eq('id', usuarioId)
+    }
   }
 
   return NextResponse.json({ ok: true })

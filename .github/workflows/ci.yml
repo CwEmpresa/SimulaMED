@@ -55,3 +55,21 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      # testar:acesso bate de verdade em /api/webhooks/lowify, então precisa
+      # do app rodando — builda e sobe em produção local, roda o teste, mata
+      # o servidor. Exige também o segredo LOWIFY_WEBHOOK_SECRET (o mesmo do
+      # .env.local) cadastrado nos secrets do repositório.
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      - run: |
+          npm run start &
+          npx wait-on http://localhost:3000/login
+          npm run testar:acesso
+          kill %1
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          LOWIFY_WEBHOOK_SECRET: ${{ secrets.LOWIFY_WEBHOOK_SECRET }}

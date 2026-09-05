@@ -7,9 +7,9 @@ import { createClient } from '@/lib/supabase/server'
 /**
  * Atualiza o nome do usuário.
  *
- * O e-mail não é editável: ele é a chave que liga a conta à compra na Lowify.
- * Trocá-lo aqui romperia esse vínculo — quando o webhook da fase 2 existir,
- * qualquer mudança de e-mail terá de passar por ele.
+ * O e-mail não é editável: ele é a chave que liga a conta à compra na Lowify
+ * e ao próprio login (o aluno entra digitando esse e-mail). Trocá-lo aqui
+ * romperia os dois — qualquer mudança de e-mail tem que passar pelo webhook.
  */
 export async function salvarNome(formData: FormData) {
   const nome = String(formData.get('nome') ?? '').trim().slice(0, 120)

@@ -39,6 +39,15 @@ if (usuario) {
   console.log(`Usuário criado: ${EMAIL}`)
 }
 
+// O middleware agora exige usuarios.acesso_liberado_em (só o webhook da
+// Lowify marca isso em produção) — sem simular uma "compra aprovada" aqui, o
+// próprio usuário de dev seria deslogado ao tentar entrar em qualquer tela.
+await admin
+  .from('usuarios')
+  .update({ acesso_liberado_em: new Date().toISOString() })
+  .eq('id', usuario.id)
+  .is('acesso_liberado_em', null)
+
 if (process.argv.includes('--limpar')) {
   await admin.from('caderno_erros').delete().eq('usuario_id', usuario.id)
   await admin.from('respostas_banco').delete().eq('usuario_id', usuario.id)

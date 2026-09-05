@@ -64,11 +64,41 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  if (user && pathname === '/login') {
+  // O webhook da Lowify é a única fonte que liga `acesso_liberado_em` — ter
+  // sessão (`user` truthy) não basta mais, porque a conta pode ter sido criada
+  // sem compra aprovada (ex.: login por senha de /dev, ou alguém batendo direto
+  // no endpoint público de OTP do Supabase por fora da nossa UI). Sem essa
+  // marca, a sessão é encerrada aqui mesmo — nunca chega a servir uma tela.
+  let acessoLiberado = false
+  if (user) {
+    const { data: usuario } = await supabase
+      .from('usuarios')
+      .select('acesso_liberado_em')
+      .eq('id', user.id)
+      .maybeSingle()
+    acessoLiberado = !!usuario?.acesso_liberado_em
+  }
+
+  if (user && !acessoLiberado && !ehPublica) {
+    await supabase.auth.signOut()
     const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
+    url.pathname = '/login'
     url.search = ''
+    url.searchParams.set('erro', 'sem_acesso')
     return NextResponse.redirect(url)
+  }
+
+  if (user && pathname === '/login') {
+    if (acessoLiberado) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/dashboard'
+      url.search = ''
+      return NextResponse.redirect(url)
+    }
+    // Sessão sem acesso batendo na própria tela de login: encerra e deixa
+    // renderizar o formulário, em vez de ficar preso num vaivém com o bloco
+    // acima (que só age fora de rota pública, e /login é pública).
+    await supabase.auth.signOut()
   }
 
   return supabaseResponse

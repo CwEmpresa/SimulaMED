@@ -17,8 +17,8 @@ Narrativa: **"Faça a prova antes da prova."**
 ## Stack
 
 Next.js (App Router) + TypeScript + Tailwind 4 · Supabase (Postgres + Auth + RLS) · Vercel.
-Auth por magic link. O vínculo automático com a compra (webhook Lowify) é fase 2 —
-hoje o acesso é por convite/cadastro manual.
+Não há senha, magic link nem SMTP: o acesso é 100% guiado pela compra. Ver
+"Acesso por e-mail" abaixo.
 
 ## Supabase
 
@@ -27,8 +27,9 @@ Todas as tabelas têm RLS: cada usuário só acessa as próprias tentativas, res
 caderno de erros; `questoes` é leitura para qualquer autenticado e escrita apenas via
 `service_role` (script de importação).
 
-`public.usuarios` espelha `auth.users` por trigger (`handle_new_user`), então o login
-por magic link já cria a linha do usuário.
+`public.usuarios` espelha `auth.users` por trigger (`handle_new_user`) — a conta só
+passa a existir quando o webhook da Lowify cria o usuário numa compra aprovada (ver
+"Acesso por e-mail").
 
 ## Conteúdo e o rebalanceamento do gabarito
 
@@ -179,30 +180,73 @@ mesma chamada se acertou, a alternativa correta e os dois comentários. É
   "Banco de questões em produção". `npm run testar:banco` semeia questões
   descartáveis, exercita o fluxo e apaga tudo no fim.
 
-## Limite de envio de e-mail do Supabase (bloqueio conhecido)
+## Acesso por e-mail (sem senha, sem magic link, sem SMTP)
 
-O magic link real usa o serviço de e-mail **embutido** do Supabase, que tem uma
-cota conjunta e muito baixa por hora para todo o projeto (`/auth/v1/signup`,
-`/auth/v1/recover`, envio de OTP/magic link somados) — confirmado batendo
-direto na API: `error.code = over_email_send_rate_limit`, HTTP 429. Não é
-configurável pelo dashboard nem por código; só aumenta configurando **SMTP
-próprio**. Testar o login algumas vezes seguidas já é o suficiente pra estourar.
+Não existe mais cadastro manual/convite nem link enviado por e-mail. O fluxo
+inteiro:
 
-- **Durante o desenvolvimento:** usar `/dev/login` (ver seção abaixo) em vez do
-  magic link real — não depende de e-mail.
-- **Antes de qualquer lançamento real:** configurar SMTP próprio em Supabase
-  Dashboard → Authentication → Emails → SMTP Settings (Resend, SendGrid, AWS
-  SES, Postmark...). É recomendação da própria checklist de produção do
-  Supabase, tanto pelo limite quanto pela entregabilidade (domínio confiável).
-  Isso exige criar conta num provedor e colar credenciais — decisão do Carlos,
-  não algo para fazer sozinho.
+1. Aluno compra na Lowify.
+2. `POST /api/webhooks/lowify` (`src/app/api/webhooks/lowify/route.ts`) recebe
+   o evento. Numa compra aprovada (`status: 'pago'`), acha a conta pelo e-mail
+   ou **cria uma nova** com `admin.auth.admin.createUser({ email,
+   email_confirm: true })` — o mesmo mecanismo do usuário de dev, que não
+   dispara e-mail nenhum — e marca `usuarios.acesso_liberado_em`. Num
+   reembolso/chargeback/cancelamento, limpa essa marca.
+3. Em `/login` o aluno só digita o e-mail. A server action
+   `entrarComEmail` (`src/app/actions/acesso.ts`) confere
+   `acesso_liberado_em`; se estiver marcada, monta uma sessão de verdade sem
+   enviar nada: `admin.auth.admin.generateLink({ type: 'magiclink', email })`
+   gera o token (a Admin API não envia e-mail, só devolve o token) e
+   `supabase.auth.verifyOtp({ type: 'magiclink', token_hash })`, com a chave
+   anon, troca esse token por uma sessão real na mesma requisição. O aluno
+   nunca vê o token nem qualquer link.
+4. Como a conta é sempre a mesma (mesmo `auth.uid()` desde a primeira compra),
+   perder a sessão não perde progresso — o aluno só digita o e-mail no `/login`
+   de novo e recebe uma sessão nova para a mesma conta.
+
+**`acesso_liberado_em` é a única fonte de verdade de acesso**, e só o webhook
+escreve nela. Isso é reforçado em duas camadas:
+
+- **A tela de acesso** só monta sessão se ela estiver marcada — nunca cria
+  conta, isso é papel exclusivo do webhook.
+- **O proxy** (`src/lib/supabase/middleware.ts`) confere `acesso_liberado_em`
+  em toda rota autenticada, não só no login. Ter sessão não basta: se a marca
+  estiver nula (revogada num reembolso, ou uma conta criada por algum caminho
+  fora do webhook, como `/dev/login`), a sessão é encerrada (`signOut`) e o
+  aluno cai de volta em `/login?erro=sem_acesso` na mesma requisição — mesmo
+  no meio de uma sessão já aberta. Por isso `scripts/criar-usuario-dev.mjs`
+  também marca `acesso_liberado_em` do usuário de dev: sem isso ele seria
+  deslogado ao tentar abrir qualquer tela.
+- **`acesso_tentativas`** (tabela sem nenhuma policy nem grant para
+  `anon`/`authenticated` — só `service_role`, usado dentro da server action)
+  guarda cada tentativa de login para o rate limit (5 por e-mail / 20 por IP
+  a cada 15 min). A resposta em `/login` é a mesma para "e-mail nunca
+  existiu", "existe mas nunca comprou" e "comprou e foi reembolsado depois" —
+  de propósito, pra não dar pista de quais e-mails têm compra aprovada.
+
+`npm run testar:acesso` cobre o fluxo inteiro (webhook aprova → conta criada
+sem e-mail → sessão montada → RLS da sessão → reembolso revoga → reentrega do
+mesmo evento não duplica). Precisa do `npm run dev` rodando (bate de verdade
+em `/api/webhooks/lowify`) e do mesmo `LOWIFY_WEBHOOK_SECRET` do `.env.local`.
+
+`src/lib/lowify.ts` (`interpretarEventoLowify`) ainda assume nomes de campo
+prováveis para o payload da Lowify, não confirmados contra a documentação
+real — é o único lugar a ajustar quando ela existir.
+
+**Toggle manual pendente:** desativar cadastro/OTP público em Supabase
+Dashboard → Authentication → Sign In / Providers → Email (ou "Allow new user
+signups"), pra ninguém conseguir criar conta batendo direto em
+`/auth/v1/signup` ou `/auth/v1/otp` por fora deste fluxo. Não é uma falha de
+segurança sem isso — o proxy barra qualquer sessão sem `acesso_liberado_em` de
+qualquer forma — mas fecha o caminho por completo em vez de só neutralizá-lo
+depois.
 
 ## Login por senha (somente desenvolvimento)
 
-O acesso real é por magic link, o que inviabiliza testar telas protegidas sem
-uma caixa de e-mail. Para isso existe `/dev/login`, com **três guardas
-independentes** — se qualquer uma sozinha falhar, a rota vira um bypass de
-autenticação em produção:
+Além do acesso real (por e-mail, acima), existe `/dev/login` — um atalho de
+senha pra testar telas protegidas sem precisar simular uma compra aprovada a
+cada vez. **Três guardas independentes** — se qualquer uma sozinha falhar, a
+rota vira um bypass de autenticação em produção:
 
 1. a página chama `notFound()` quando `NODE_ENV === 'production'`;
 2. a server action recusa com erro na mesma condição;

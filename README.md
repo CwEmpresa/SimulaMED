@@ -12,8 +12,10 @@ Este README cobre só o "como rodar".
 ## Stack
 
 Next.js 16 (App Router) + TypeScript + Tailwind 4 · Supabase (Postgres + Auth
-+ RLS) · Vercel. Auth por magic link (login por senha só existe em
-desenvolvimento, ver abaixo).
++ RLS) · Vercel. Sem senha, sem magic link, sem SMTP: o acesso é liberado pelo
+webhook da Lowify numa compra aprovada, e o aluno só digita o e-mail em
+`/login` (ver AGENTS.md, "Acesso por e-mail"). Login por senha só existe em
+desenvolvimento, ver abaixo.
 
 ## Rodando localmente
 
@@ -23,9 +25,10 @@ cp .env.example .env.local   # preencher com as chaves do projeto Supabase
 npm run dev
 ```
 
-Abra [http://localhost:3000](http://localhost:3000). Como o acesso real é por
-magic link (que esbarra na cota de e-mail do Supabase — ver AGENTS.md), use
-`/dev/login` para testar telas protegidas sem depender de caixa de entrada:
+Abra [http://localhost:3000](http://localhost:3000). O acesso real depende de
+uma compra aprovada via webhook da Lowify (ver AGENTS.md, "Acesso por
+e-mail") — para testar telas protegidas sem simular uma compra toda vez, use
+`/dev/login`:
 
 ```bash
 npm run dev:usuario -- --limpar   # cria/reseta dev@reta-final.local
@@ -67,6 +70,7 @@ npm run imagens:enviar <arquivo> <nome> # envia imagem clínica para o bucket pr
 npm run testar:prova        # E2E do Modo Prova, como aluno real (RLS ativo)
 npm run testar:banco         # E2E do Banco de Questões
 npm run testar:conta         # E2E de onboarding/conta
+npm run testar:acesso        # E2E do acesso por e-mail (webhook → sessão → RLS); precisa do `npm run dev` rodando
 npm run testar:area-fraca    # teste unitário do diagnóstico (sem banco)
 npm run dev:usuario -- --limpar   # cria/reseta o usuário de dev
 ```

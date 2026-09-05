@@ -2,9 +2,10 @@
  * Testa o que o aluno pode e não pode gravar na própria linha de `usuarios`,
  * mais o ciclo do onboarding. Roda como aluno real (chave anon + RLS).
  *
- * O ponto sensível: `email` liga a conta à compra na Lowify e será a chave do
- * webhook da fase 2. O RLS garante "só a própria linha", mas não "só estas
- * colunas" — a restrição vem do grant de coluna, e é isso que se verifica aqui.
+ * O ponto sensível: `email` liga a conta à compra na Lowify e é a chave que o
+ * aluno digita para entrar (ver src/app/actions/acesso.ts). O RLS garante "só
+ * a própria linha", mas não "só estas colunas" — a restrição vem do grant de
+ * coluna, e é isso que se verifica aqui.
  *
  *   node --env-file=.env.local scripts/testar-conta.mjs
  */
