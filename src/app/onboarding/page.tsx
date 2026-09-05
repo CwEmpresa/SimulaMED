@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation'
 
-import { AvisoConteudo } from '@/components/aviso-conteudo'
 import { PassosOnboarding } from '@/components/onboarding/passos-onboarding'
 import { createClient } from '@/lib/supabase/server'
 
@@ -32,8 +31,6 @@ export default async function OnboardingPage() {
       </header>
 
       <PassosOnboarding />
-
-      <AvisoConteudo />
     </main>
   )
 }

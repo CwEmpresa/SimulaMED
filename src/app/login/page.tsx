@@ -1,7 +1,6 @@
 import Link from 'next/link'
 
 import { entrarComEmail } from '@/app/actions/acesso'
-import { AvisoConteudo } from '@/components/aviso-conteudo'
 import { IconeAlerta, IconeSeta } from '@/components/ui/icones'
 import { botaoPrimario } from '@/components/ui/primitivos'
 
@@ -72,8 +71,6 @@ export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
           <IconeSeta className="size-4" />
         </button>
       </form>
-
-      <AvisoConteudo className="text-center" />
 
       <p className="text-center text-xs text-texto-fraco">
         <Link href="/termos" className="underline underline-offset-4 hover:text-texto-suave">

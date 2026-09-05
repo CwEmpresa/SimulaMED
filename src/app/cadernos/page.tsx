@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
-import { AvisoConteudo } from '@/components/aviso-conteudo'
 import { CascaApp } from '@/components/casca-app'
 import { ApoioQuestao } from '@/components/questao/apoio-questao'
 import { DetalheQuestao } from '@/components/revisao/detalhe-questao'
@@ -209,8 +208,6 @@ export default async function CadernosPage({ searchParams }: PageProps<'/caderno
           ))}
         </div>
       )}
-
-      <AvisoConteudo className="mt-12" />
     </main>
     </CascaApp>
   )

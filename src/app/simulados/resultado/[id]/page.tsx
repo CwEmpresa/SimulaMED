@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 
-import { AvisoConteudo } from '@/components/aviso-conteudo'
 import { CascaApp } from '@/components/casca-app'
 import { IconeCaderno, IconeCronometro, IconeGabarito } from '@/components/ui/icones'
 import {
@@ -150,8 +149,6 @@ export default async function ResultadoPage({ params }: PageProps<'/simulados/re
             Voltar aos simulados
           </Link>
         </div>
-
-        <AvisoConteudo className="mt-12" />
       </main>
     </CascaApp>
   )

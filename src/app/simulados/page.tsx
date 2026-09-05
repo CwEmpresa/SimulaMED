@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation'
 
-import { AvisoConteudo } from '@/components/aviso-conteudo'
 import { CascaApp } from '@/components/casca-app'
 import { CartaoSimulado } from '@/components/simulados/cartao-simulado'
 import { STATUS_APROVADA } from '@/lib/questoes'
@@ -65,8 +64,6 @@ export default async function SimuladosPage() {
             )
           })}
         </section>
-
-        <AvisoConteudo className="mt-12" />
       </main>
     </CascaApp>
   )

@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation'
 
 import { salvarNome } from '@/app/actions/perfil'
-import { AvisoConteudo } from '@/components/aviso-conteudo'
 import { CascaApp } from '@/components/casca-app'
 import { IconeSair } from '@/components/ui/icones'
 import { botaoPrimario, botaoSecundario } from '@/components/ui/primitivos'
@@ -87,8 +86,6 @@ export default async function PerfilPage() {
           Sair da conta
         </button>
       </form>
-
-      <AvisoConteudo className="mt-12" />
     </main>
     </CascaApp>
   )

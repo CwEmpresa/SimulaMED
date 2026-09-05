@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
-import { AvisoConteudo } from '@/components/aviso-conteudo'
 import type { QuestaoBanco } from '@/components/banco/praticar-banco'
 import { CascaApp } from '@/components/casca-app'
 import { JogoCombo } from '@/components/combo/jogo-combo'
@@ -58,8 +57,6 @@ export default async function ComboPage() {
         ) : (
           <JogoCombo questoes={acervo} recordeInicial={perfil?.recorde_combo ?? 0} />
         )}
-
-        <AvisoConteudo className="mt-12" />
       </main>
     </CascaApp>
   )
