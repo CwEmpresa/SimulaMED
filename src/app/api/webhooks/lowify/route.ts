@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { assinaturaValida, interpretarEventoLowify } from '@/lib/lowify'
 import { createAdminClient } from '@/lib/supabase/admin'
+import type { Json } from '@/lib/supabase/types'
 
 const STATUS_REVOGA_ACESSO = new Set(['reembolsado', 'chargeback', 'cancelado'])
 
@@ -21,12 +22,16 @@ const STATUS_REVOGA_ACESSO = new Set(['reembolsado', 'chargeback', 'cancelado'])
  *   (src/lib/supabase/middleware.ts) já desloga e barra o acesso.
  *
  * Idempotente por `evento_id`: reentrega do mesmo evento faz upsert, nunca
- * duplica nem processa duas vezes.
+ * duplica nem processa duas vezes — e `interpretarEventoLowify` (ver
+ * src/lib/lowify.ts) cai para um hash do corpo quando não acha um campo de
+ * id, então a idempotência não depende de adivinhar o nome certo do campo.
  *
- * NÃO ESTÁ PRONTO PARA PRODUÇÃO: `interpretarEventoLowify` (src/lib/lowify.ts)
- * assume nomes de campo prováveis, não confirmados contra a documentação real
- * da Lowify. Ver a checagem de assinatura abaixo — hoje é um token estático
- * em header, ajustar se a Lowify usar HMAC.
+ * NÃO EXISTE DOCUMENTAÇÃO PÚBLICA DA LOWIFY (já busquei) nem payload de
+ * exemplo real. `interpretarEventoLowify` varre o payload por palavra-chave
+ * em vez de nomes de campo fixos — bem mais tolerante a formato desconhecido
+ * — mas se um payload real cair aqui e vier `payload_nao_reconhecido`, o log
+ * abaixo mostra o corpo bruto inteiro, e é só ajustar as listas de chaves em
+ * src/lib/lowify.ts.
  */
 export async function POST(request: Request) {
   const segredo = process.env.LOWIFY_WEBHOOK_SECRET
@@ -35,27 +40,31 @@ export async function POST(request: Request) {
     return NextResponse.json({ erro: 'not_configured' }, { status: 500 })
   }
 
-  const headerToken = request.headers.get('x-lowify-token')
-  if (!assinaturaValida(headerToken, segredo)) {
+  const textoBruto = await request.text()
+  let payload: Json = null
+  try {
+    payload = textoBruto ? JSON.parse(textoBruto) : null
+  } catch {
+    console.error('Payload da Lowify não é JSON válido:', textoBruto.slice(0, 2000))
+    return NextResponse.json({ erro: 'payload_invalido' }, { status: 400 })
+  }
+
+  if (!assinaturaValida(request, payload, segredo)) {
     return NextResponse.json({ erro: 'assinatura_invalida' }, { status: 401 })
   }
 
-  const payload = await request.json().catch(() => null)
-  const evento = payload ? interpretarEventoLowify(payload) : null
+  const evento = interpretarEventoLowify(payload)
   if (!evento) {
     console.error('Payload da Lowify não reconhecido pelo adaptador:', JSON.stringify(payload))
     return NextResponse.json({ erro: 'payload_nao_reconhecido' }, { status: 422 })
   }
 
   const admin = createAdminClient()
-  const email = evento.email.toLowerCase()
 
-  // eq (não ilike): o Supabase Auth já normaliza e-mail para minúsculas no
-  // cadastro, e ilike trataria '%'/'_' no e-mail como curinga de LIKE.
   const { data: usuarioExistente } = await admin
     .from('usuarios')
     .select('id, acesso_liberado_em')
-    .eq('email', email)
+    .eq('email', evento.email)
     .maybeSingle()
 
   let usuarioId = usuarioExistente?.id ?? null
@@ -64,7 +73,7 @@ export async function POST(request: Request) {
   // existe no sistema, nunca a tela de acesso.
   if (!usuarioId && evento.status === 'pago') {
     const { data: criado, error: erroCriar } = await admin.auth.admin.createUser({
-      email,
+      email: evento.email,
       email_confirm: true,
     })
     if (erroCriar || !criado.user) {

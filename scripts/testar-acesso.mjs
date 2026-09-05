@@ -42,13 +42,16 @@ function checar(condicao, descricao, detalhe = '') {
 const SUFIXO = Date.now()
 const EMAIL_COMPRADOR = `teste-acesso-${SUFIXO}@example.com`
 const EMAIL_SEM_COMPRA = `teste-sem-compra-${SUFIXO}@example.com`
+const EMAIL_COMPRADOR_2 = `teste-acesso-formato-alt-${SUFIXO}@example.com`
+const EMAIL_COMPRADOR_3 = `teste-acesso-query-${SUFIXO}@example.com`
 
-async function chamarWebhook(payload) {
-  const resposta = await fetch(`${BASE_URL}/api/webhooks/lowify`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-lowify-token': SEGREDO_WEBHOOK },
-    body: JSON.stringify(payload),
-  })
+async function chamarWebhook(payload, { querystring } = {}) {
+  const url = querystring
+    ? `${BASE_URL}/api/webhooks/lowify?${querystring}=${SEGREDO_WEBHOOK}`
+    : `${BASE_URL}/api/webhooks/lowify`
+  const headers = { 'Content-Type': 'application/json' }
+  if (!querystring) headers['x-lowify-token'] = SEGREDO_WEBHOOK
+  const resposta = await fetch(url, { method: 'POST', headers, body: JSON.stringify(payload) })
   return resposta
 }
 
@@ -178,14 +181,90 @@ try {
     await admin.from('compras').select('id', { count: 'exact', head: true }).eq('evento_id', `evt-teste-aprovado-${SUFIXO}`)
   ).count
   checar(contagemAntes === 1 && contagemDepois === 1, 'reentrega do evento não duplica a linha em compras')
+
+  console.log('\n8. Formato de payload totalmente diferente (estilo Hotmart) também é reconhecido')
+  const respostaFormatoAlt = await chamarWebhook({
+    event: 'PURCHASE_APPROVED',
+    data: {
+      buyer: { email: EMAIL_COMPRADOR_2 },
+      purchase: { transaction: `HP-${SUFIXO}` },
+    },
+  })
+  checar(respostaFormatoAlt.ok, 'webhook reconhece payload em formato diferente (chaves/nesting distintos)')
+  const { data: usuario2 } = await admin
+    .from('usuarios')
+    .select('id, acesso_liberado_em')
+    .eq('email', EMAIL_COMPRADOR_2)
+    .maybeSingle()
+  const usuarioId2 = usuario2?.id ?? null
+  checar(!!usuarioId2 && !!usuario2?.acesso_liberado_em, 'conta liberada mesmo com nomes de campo diferentes do teste 1')
+
+  console.log('\n9. Cancelamento revoga (palavra-chave em inglês, maiúscula)')
+  await chamarWebhook({
+    event: 'ORDER_CANCELLED',
+    data: { buyer: { email: EMAIL_COMPRADOR_2 }, purchase: { transaction: `HP-CANCEL-${SUFIXO}` } },
+  })
+  const { data: usuario2Cancelado } = await admin
+    .from('usuarios')
+    .select('acesso_liberado_em')
+    .eq('id', usuarioId2)
+    .maybeSingle()
+  checar(!usuario2Cancelado?.acesso_liberado_em, 'cancelamento também revoga acesso_liberado_em')
+
+  console.log('\n10. Chargeback revoga (reaprova antes, pra provar que o chargeback é quem derruba)')
+  await chamarWebhook({
+    event: 'PURCHASE_APPROVED',
+    data: { buyer: { email: EMAIL_COMPRADOR_2 }, purchase: { transaction: `HP-REAPROVA-${SUFIXO}` } },
+  })
+  await chamarWebhook({
+    event: 'chargeback_created',
+    data: { buyer: { email: EMAIL_COMPRADOR_2 }, purchase: { transaction: `HP-CHB-${SUFIXO}` } },
+  })
+  const { data: usuario2Chargeback } = await admin
+    .from('usuarios')
+    .select('acesso_liberado_em')
+    .eq('id', usuarioId2)
+    .maybeSingle()
+  checar(!usuario2Chargeback?.acesso_liberado_em, 'chargeback revoga acesso_liberado_em')
+
+  console.log('\n11. Autenticação por query string (?token=), sem header nenhum')
+  const respostaQuery = await chamarWebhook(
+    { event: 'aprovado', data: { email: EMAIL_COMPRADOR_3 } },
+    { querystring: 'token' },
+  )
+  checar(respostaQuery.ok, 'webhook aceita o segredo via query string quando não há header')
+  const { data: usuario3 } = await admin
+    .from('usuarios')
+    .select('id, acesso_liberado_em')
+    .eq('email', EMAIL_COMPRADOR_3)
+    .maybeSingle()
+  const usuarioId3 = usuario3?.id ?? null
+  checar(!!usuarioId3 && !!usuario3?.acesso_liberado_em, 'conta liberada autenticando só por query string')
+
+  console.log('\n12. Idempotência por hash quando o payload não tem nenhum campo de id')
+  const payloadSemId = { event: 'aprovado', data: { email: EMAIL_COMPRADOR_3, nota: 'sem id nenhum' } }
+  await chamarWebhook(payloadSemId)
+  await chamarWebhook(payloadSemId)
+  const { data: comprasSemId } = await admin
+    .from('compras')
+    .select('id')
+    .eq('email', EMAIL_COMPRADOR_3)
+  checar(
+    (comprasSemId ?? []).length === 2, // a do passo 11 (com evento_id "real") + uma via hash do passo 12
+    'payload sem campo de id reconhecível ainda assim é idempotente (hash do corpo)',
+    `(vieram ${(comprasSemId ?? []).length})`,
+  )
 } finally {
-  if (usuarioId) {
-    await admin.from('acesso_tentativas').delete().eq('email', EMAIL_COMPRADOR)
-    await admin.from('acesso_tentativas').delete().eq('email', EMAIL_SEM_COMPRA)
-    await admin.from('compras').delete().eq('usuario_id', usuarioId)
-    await admin.auth.admin.deleteUser(usuarioId)
+  const emails = [EMAIL_COMPRADOR, EMAIL_SEM_COMPRA, EMAIL_COMPRADOR_2, EMAIL_COMPRADOR_3]
+  for (const email of emails) {
+    await admin.from('acesso_tentativas').delete().eq('email', email)
+    const { data: usuario } = await admin.from('usuarios').select('id').eq('email', email).maybeSingle()
+    if (usuario?.id) {
+      await admin.from('compras').delete().eq('usuario_id', usuario.id)
+      await admin.auth.admin.deleteUser(usuario.id)
+    }
   }
-  console.log('\nConta e rastros de teste removidos.')
+  console.log('\nContas e rastros de teste removidos.')
 }
 
 if (falhas.length > 0) {

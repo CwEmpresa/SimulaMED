@@ -229,9 +229,19 @@ sem e-mail → sessão montada → RLS da sessão → reembolso revoga → reent
 mesmo evento não duplica). Precisa do `npm run dev` rodando (bate de verdade
 em `/api/webhooks/lowify`) e do mesmo `LOWIFY_WEBHOOK_SECRET` do `.env.local`.
 
-`src/lib/lowify.ts` (`interpretarEventoLowify`) ainda assume nomes de campo
-prováveis para o payload da Lowify, não confirmados contra a documentação
-real — é o único lugar a ajustar quando ela existir.
+Não existe documentação pública da Lowify (já busquei), então
+`src/lib/lowify.ts` (`interpretarEventoLowify`) não aposta num único formato
+de campo: varre o payload inteiro por palavra-chave (aprovado/reembolsado/
+chargeback/cancelado, em várias línguas e formatos) e por formato (e-mail
+reconhecido pelo `@`), em vez de nomes de chave fixos — tolerante a payload
+desconhecido, mas ainda não confirmado contra um payload real. `evento_id`
+cai para um hash do corpo quando nenhum campo parece um id, então a
+idempotência não depende de acertar o nome do campo. A verificação de
+assinatura (`assinaturaValida`) aceita as três formas mais comuns (header
+configurável por `LOWIFY_WEBHOOK_HEADER`, query string `?token=`/`?secret=`,
+ou campo no corpo) — a primeira que bater autentica. Se um payload real cair
+e vier `payload_nao_reconhecido`, o log do handler mostra o corpo bruto
+inteiro; é só ajustar as listas de chaves em `src/lib/lowify.ts`.
 
 **Toggle manual pendente:** desativar cadastro/OTP público em Supabase
 Dashboard → Authentication → Sign In / Providers → Email (ou "Allow new user
