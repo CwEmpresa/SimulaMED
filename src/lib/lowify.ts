@@ -4,30 +4,42 @@ import { createHash, timingSafeEqual } from 'node:crypto'
  * Adaptador entre o payload bruto do webhook da Lowify e o formato que
  * `compras` espera.
  *
- * FORMATO REAL CONFIRMADO em 2026-09-06 (evento de teste disparado do próprio
- * painel da Lowify, `sale_id: "ord_test_..."`, chegou em produção e foi
- * processado com sucesso):
+ * FORMATO REAL CONFIRMADO em 2026-09-06, em DUAS variações — o botão de teste
+ * do painel da Lowify e uma compra de verdade não mandam o mesmo campo de id:
  *
+ *   // Teste disparado do painel (sale_id):
  *   {
  *     "event": "sale.paid",
  *     "is_test": true,
  *     "product": { "id": 0, "name": "Produto de Teste" },
  *     "sale_id": "ord_test_6a9d024301745",
  *     "customer": { "name": "Cliente Teste", "email": "...", "phone": "..." },
- *     "tracking": { "click_id": "...", "utm_source": "...", "campaign_id": "..." },
  *     "timestamp": "2026-09-06 03:03:47"
  *   }
  *
- * `interpretarFormatoConhecido` reconhece esse formato explicitamente (id da
- * venda em `sale_id`, e-mail em `customer.email`, produto em `product.name`)
- * — é checado primeiro. Só cai no scanner tolerante abaixo (herdado de antes
- * de existir um payload real: varre o objeto inteiro por chaves conhecidas de
+ *   // Compra real (order_id, não sale_id — sem isso o evento caía no
+ *   // scanner tolerante, que reconhece mas perde o nome do produto):
+ *   {
+ *     "event": "sale.paid",
+ *     "status": "paid",
+ *     "product": { "id": 58165, "name": "SimulaMED", "type": "principal", "price": 1 },
+ *     "customer": { "name": "...", "email": "...", "phone": "..." },
+ *     "order_id": "ord_260cb0411f24285a",
+ *     "timestamp": "2026-09-06 03:31:12",
+ *     "sale_amount": 1
+ *   }
+ *
+ * `interpretarFormatoConhecido` reconhece as duas (id em `order_id` OU
+ * `sale_id`, e-mail em `customer.email`, produto em `product.name`) — é
+ * checado primeiro. Só cai no scanner tolerante abaixo (herdado de antes de
+ * existir um payload real: varre o objeto inteiro por chaves conhecidas de
  * várias plataformas de checkout brasileiras, depois por palavra-chave/
- * formato) quando o payload não bate com esse formato — uma mudança futura da
- * Lowify, ou uma origem diferente. O status ainda usa o mesmo casamento por
- * palavra-chave em ambos os caminhos: só vimos `sale.paid` até agora, e
- * hardcodar um valor exato para reembolso/cancelamento/chargeback sem nunca
- * ter visto o payload real de nenhum deles seria apostar, não confirmar.
+ * formato) quando o payload não bate com nenhuma das duas — uma mudança
+ * futura da Lowify, ou uma origem diferente. O status ainda usa o mesmo
+ * casamento por palavra-chave em ambos os caminhos: só `sale.paid`/`paid`
+ * foram confirmados até agora, e hardcodar um valor exato para reembolso/
+ * cancelamento/chargeback sem nunca ter visto o payload real de nenhum deles
+ * seria apostar, não confirmar.
  */
 export type EventoLowify = {
   eventoId: string
@@ -128,13 +140,15 @@ function buscarStatus(pares: Array<{ chave: string; valor: string }>): EventoLow
 }
 
 /**
- * Formato real confirmado (ver comentário do arquivo): `sale_id` na raiz,
- * `customer.email`, `product.name` e `event` como string tipo "sale.paid".
- * Devolve `null` (sem lançar) quando o payload não bate com esse formato —
- * é o sinal para `interpretarEventoLowify` cair no scanner tolerante.
+ * Formato real confirmado (ver comentário do arquivo): id da compra em
+ * `order_id` (compra de verdade) ou `sale_id` (teste do painel) — a Lowify
+ * manda um ou outro, nunca os dois —, `customer.email`, `product.name` e
+ * `event` como string tipo "sale.paid". Devolve `null` (sem lançar) quando o
+ * payload não bate com esse formato — é o sinal para `interpretarEventoLowify`
+ * cair no scanner tolerante.
  */
 function interpretarFormatoConhecido(payload: Record<string, unknown>): EventoLowify | null {
-  const saleId = payload.sale_id
+  const idCompra = payload.order_id ?? payload.sale_id
   const evento = payload.event
   const cliente = payload.customer
 
@@ -143,7 +157,7 @@ function interpretarFormatoConhecido(payload: Record<string, unknown>): EventoLo
       ? ((cliente as { email: string }).email)
       : undefined
 
-  if (typeof saleId !== 'string' || saleId.trim() === '') return null
+  if (typeof idCompra !== 'string' || idCompra.trim() === '') return null
   if (typeof evento !== 'string') return null
   if (!email || email.trim() === '') return null
 
@@ -158,7 +172,7 @@ function interpretarFormatoConhecido(payload: Record<string, unknown>): EventoLo
       ? (produtoObj as { name: string }).name
       : null
 
-  return { eventoId: saleId, email: email.trim().toLowerCase(), produto, status }
+  return { eventoId: idCompra, email: email.trim().toLowerCase(), produto, status }
 }
 
 /** Devolve `null` quando o payload não tem e-mail nem status reconhecíveis —

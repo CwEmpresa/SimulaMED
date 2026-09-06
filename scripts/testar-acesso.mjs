@@ -47,6 +47,7 @@ const EMAIL_COMPRADOR_3 = `teste-acesso-query-${SUFIXO}@example.com`
 const EMAIL_ACESSO_MANUAL = `teste-acesso-manual-${SUFIXO}@example.com`
 const EMAIL_SEGREDO_NO_CORPO = `teste-acesso-corpo-${SUFIXO}@example.com`
 const EMAIL_FORMATO_REAL = `teste-formato-real-${SUFIXO}@example.com`
+const EMAIL_ORDER_ID = `teste-order-id-${SUFIXO}@example.com`
 
 async function chamarWebhook(payload, { querystring } = {}) {
   const url = querystring
@@ -368,6 +369,27 @@ try {
     !usuarioFormatoRealDepois?.acesso_liberado_em,
     '"sale.refunded" revoga acesso_liberado_em (via casamento de palavra-chave, "refunded" ainda não confirmado)',
   )
+
+  console.log('\n16. Variação real com order_id (compra de verdade), não sale_id (teste do painel)')
+  const orderIdReal = `ord_teste_order_id_${SUFIXO}`
+  const respostaOrderId = await chamarWebhook({
+    event: 'sale.paid',
+    status: 'paid',
+    product: { id: 58165, name: 'SimulaMED', type: 'principal', price: 1 },
+    customer: { name: 'Cliente Teste', email: EMAIL_ORDER_ID, phone: '11999999999' },
+    order_id: orderIdReal,
+    timestamp: '2026-09-06 03:31:12',
+    sale_amount: 1,
+  })
+  checar(respostaOrderId.ok, 'webhook aceita a variação com order_id')
+  const { data: compraOrderId } = await admin
+    .from('compras')
+    .select('evento_id, produto, status')
+    .eq('evento_id', orderIdReal)
+    .maybeSingle()
+  checar(compraOrderId?.evento_id === orderIdReal, 'order_id vira evento_id quando sale_id não existe')
+  checar(compraOrderId?.produto === 'SimulaMED', 'product.name é extraído mesmo sem sale_id')
+  checar(compraOrderId?.status === 'pago', 'status "paid" é interpretado como pago')
 } finally {
   const emails = [
     EMAIL_COMPRADOR,
@@ -377,6 +399,7 @@ try {
     EMAIL_ACESSO_MANUAL,
     EMAIL_SEGREDO_NO_CORPO,
     EMAIL_FORMATO_REAL,
+    EMAIL_ORDER_ID,
   ]
   for (const email of emails) {
     await admin.from('acesso_tentativas').delete().eq('email', email)
