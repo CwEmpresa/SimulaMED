@@ -82,7 +82,7 @@ export default async function ResultadoPage({ params }: PageProps<'/simulados/re
               : []),
             {
               rotulo: 'Média da turma',
-              valor: mediaSimulado === null ? '—' : `${Math.round(mediaSimulado)}/${TOTAL_QUESTOES}`,
+              valor: mediaSimulado === null ? '-' : `${Math.round(mediaSimulado)}/${TOTAL_QUESTOES}`,
             },
           ]}
         />

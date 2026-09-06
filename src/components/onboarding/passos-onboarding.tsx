@@ -11,14 +11,14 @@ const PASSOS = [
     titulo: 'Simulados',
     resumo: 'Faça a prova antes da prova.',
     texto:
-      'Três provas completas de 100 questões em 5 horas, no mesmo formato e no mesmo tempo do exame. Sem pausa e com envio automático ao fim do tempo — a ideia é você já ter passado por isso quando o dia chegar.',
+      'Três provas completas de 100 questões em 5 horas, no mesmo formato e no mesmo tempo do exame. Sem pausa e com envio automático ao fim do tempo. A ideia é você já ter passado por isso quando o dia chegar.',
   },
   {
     marca: '02',
     titulo: 'Banco de questões',
     resumo: 'Treino avulso, com resposta na hora.',
     texto:
-      'Aqui é o oposto do simulado: você responde e vê na mesma hora se acertou, com o comentário completo. Dá para filtrar por área, subtema e ano, e favoritar o que quiser rever depois.',
+      'Aqui é o oposto do simulado: você responde e vê na mesma hora se acertou, com o comentário completo. Dá para filtrar por área e ano, e favoritar o que quiser rever depois.',
   },
   {
     marca: '03',

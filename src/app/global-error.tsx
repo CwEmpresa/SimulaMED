@@ -38,7 +38,7 @@ export default function GlobalError({
       >
         <h1 style={{ fontSize: '1.5rem', fontWeight: 600 }}>Algo deu errado.</h1>
         <p style={{ color: '#52627a', maxWidth: 420 }}>
-          O erro já foi registrado. Tente novamente — se persistir, recarregue a página.
+          O erro já foi registrado. Tente novamente. Se persistir, recarregue a página.
         </p>
         <button
           onClick={() => retry()}

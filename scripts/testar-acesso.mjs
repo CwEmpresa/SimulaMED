@@ -44,6 +44,7 @@ const EMAIL_COMPRADOR = `teste-acesso-${SUFIXO}@example.com`
 const EMAIL_SEM_COMPRA = `teste-sem-compra-${SUFIXO}@example.com`
 const EMAIL_COMPRADOR_2 = `teste-acesso-formato-alt-${SUFIXO}@example.com`
 const EMAIL_COMPRADOR_3 = `teste-acesso-query-${SUFIXO}@example.com`
+const EMAIL_ACESSO_MANUAL = `teste-acesso-manual-${SUFIXO}@example.com`
 
 async function chamarWebhook(payload, { querystring } = {}) {
   const url = querystring
@@ -254,8 +255,45 @@ try {
     'payload sem campo de id reconhecível ainda assim é idempotente (hash do corpo)',
     `(vieram ${(comprasSemId ?? []).length})`,
   )
+  console.log('\n13. Conta com acesso manual sobrevive a reembolso/chargeback/cancelamento')
+  await chamarWebhook({
+    id: `evt-teste-manual-aprovado-${SUFIXO}`,
+    event: 'aprovado',
+    data: { email: EMAIL_ACESSO_MANUAL },
+  })
+  const { data: usuarioManualAntes } = await admin
+    .from('usuarios')
+    .select('id, acesso_liberado_em')
+    .eq('email', EMAIL_ACESSO_MANUAL)
+    .maybeSingle()
+  const usuarioIdManual = usuarioManualAntes?.id ?? null
+  checar(!!usuarioIdManual && !!usuarioManualAntes?.acesso_liberado_em, 'conta de teste criada e liberada normalmente')
+
+  // Marca a mesma coluna que scripts/liberar-acesso-manual.mjs marcaria —
+  // é essa marca, e não o script em si, que o webhook confere.
+  await admin
+    .from('usuarios')
+    .update({ acesso_manual_em: new Date().toISOString() })
+    .eq('id', usuarioIdManual)
+
+  await chamarWebhook({
+    id: `evt-teste-manual-reembolso-${SUFIXO}`,
+    event: 'reembolsado',
+    data: { email: EMAIL_ACESSO_MANUAL },
+  })
+  const { data: usuarioManualDepois } = await admin
+    .from('usuarios')
+    .select('acesso_liberado_em, acesso_manual_em')
+    .eq('id', usuarioIdManual)
+    .maybeSingle()
+  checar(
+    !!usuarioManualDepois?.acesso_liberado_em,
+    'acesso_liberado_em NÃO foi limpa: conta com acesso_manual_em ignora o reembolso',
+    `(veio ${usuarioManualDepois?.acesso_liberado_em})`,
+  )
+  checar(!!usuarioManualDepois?.acesso_manual_em, 'acesso_manual_em continua marcada depois do evento')
 } finally {
-  const emails = [EMAIL_COMPRADOR, EMAIL_SEM_COMPRA, EMAIL_COMPRADOR_2, EMAIL_COMPRADOR_3]
+  const emails = [EMAIL_COMPRADOR, EMAIL_SEM_COMPRA, EMAIL_COMPRADOR_2, EMAIL_COMPRADOR_3, EMAIL_ACESSO_MANUAL]
   for (const email of emails) {
     await admin.from('acesso_tentativas').delete().eq('email', email)
     const { data: usuario } = await admin.from('usuarios').select('id').eq('email', email).maybeSingle()

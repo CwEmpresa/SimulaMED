@@ -362,29 +362,35 @@ export type Database = {
       usuarios: {
         Row: {
           acesso_liberado_em: string | null
+          acesso_manual_em: string | null
           criado_em: string
           email: string
           id: string
           nome: string | null
           onboarding_concluido_em: string | null
+          primeiro_login_em: string | null
           recorde_combo: number
         }
         Insert: {
           acesso_liberado_em?: string | null
+          acesso_manual_em?: string | null
           criado_em?: string
           email: string
           id: string
           nome?: string | null
           onboarding_concluido_em?: string | null
+          primeiro_login_em?: string | null
           recorde_combo?: number
         }
         Update: {
           acesso_liberado_em?: string | null
+          acesso_manual_em?: string | null
           criado_em?: string
           email?: string
           id?: string
           nome?: string | null
           onboarding_concluido_em?: string | null
+          primeiro_login_em?: string | null
           recorde_combo?: number
         }
         Relationships: []

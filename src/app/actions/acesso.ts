@@ -95,7 +95,7 @@ export async function entrarComEmail(formData: FormData) {
 
   const { data: usuario } = await admin
     .from('usuarios')
-    .select('id, email, acesso_liberado_em')
+    .select('id, email, acesso_liberado_em, primeiro_login_em')
     .eq('email', email)
     .maybeSingle()
 
@@ -126,6 +126,17 @@ export async function entrarComEmail(formData: FormData) {
   if (erroSessao) {
     console.error('Falha ao criar sessão a partir do token:', erroSessao.message)
     redirecionarComErro('sem_acesso', destino)
+  }
+
+  // Marca o primeiro login real (não a criação da conta pelo webhook) — é a
+  // referência usada para liberar os Simulados 2 e 3 progressivamente. Só
+  // grava uma vez: outros logins da mesma conta não devem empurrar a data.
+  if (!usuario.primeiro_login_em) {
+    await admin
+      .from('usuarios')
+      .update({ primeiro_login_em: new Date().toISOString() })
+      .eq('id', usuario.id)
+      .is('primeiro_login_em', null)
   }
 
   redirect(destino)

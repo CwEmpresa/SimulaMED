@@ -5,7 +5,7 @@ import { ImageResponse } from 'next/og'
 
 import { NOME_PRODUTO } from '@/lib/site'
 
-export const alt = `${NOME_PRODUTO} — Treino para o ENAMED/ENARE`
+export const alt = `${NOME_PRODUTO} · Treino para o ENAMED/ENARE`
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 

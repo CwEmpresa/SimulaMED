@@ -29,7 +29,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: `${NOME_PRODUTO} — Treino para o ENAMED/ENARE`,
+    default: `${NOME_PRODUTO} · Treino para o ENAMED/ENARE`,
     template: `%s · ${NOME_PRODUTO}`,
   },
   description: DESCRICAO_PRODUTO,
@@ -37,12 +37,12 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'pt_BR',
     siteName: NOME_PRODUTO,
-    title: `${NOME_PRODUTO} — Treino para o ENAMED/ENARE`,
+    title: `${NOME_PRODUTO} · Treino para o ENAMED/ENARE`,
     description: DESCRICAO_PRODUTO,
   },
   twitter: {
     card: 'summary_large_image',
-    title: `${NOME_PRODUTO} — Treino para o ENAMED/ENARE`,
+    title: `${NOME_PRODUTO} · Treino para o ENAMED/ENARE`,
     description: DESCRICAO_PRODUTO,
   },
   robots: {

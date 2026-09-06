@@ -44,6 +44,7 @@ const BASE_Y = ALTURA - PAD_Y_BASE
 export function CartaoMediaSimulados({
   pontos,
   mediaGeral,
+  mediaUsuario,
   diferenca,
   totalQuestoes,
   indice = 0,
@@ -51,6 +52,11 @@ export function CartaoMediaSimulados({
 }: {
   pontos: PontoMediaSimulado[]
   mediaGeral: number | null
+  /** Média real do aluno (todas as tentativas finalizadas) — `null` sem nenhuma.
+   *  Distinta da média da SÉRIE plotada: em `baseline`, `pontos` é a tendência
+   *  ilustrativa da plataforma, e mostrar a média dela como "Sua média" atribuiria
+   *  ao aluno um histórico que não existe. */
+  mediaUsuario: number | null
   /** Pontos percentuais da média pessoal acima (positivo) ou abaixo (negativo) da média da plataforma. */
   diferenca: number | null
   totalQuestoes: number
@@ -285,11 +291,9 @@ export function CartaoMediaSimulados({
 
       {/* Conteúdo principal */}
       <div className="pointer-events-none relative z-10 flex flex-1 flex-col px-6 pt-5 sm:px-8 sm:pt-7">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex items-start justify-between gap-4">
           <div className="pointer-events-auto flex items-center gap-3">
-            <h2 className="text-[17px] font-semibold tracking-tight">
-              {baseline ? 'Média da plataforma' : 'Sua média nos simulados'}
-            </h2>
+            <h2 className="text-[17px] font-semibold tracking-tight">Sua média</h2>
             <div className="flex items-center rounded-lg border border-borda bg-superficie p-0.5">
               <button
                 type="button"
@@ -320,24 +324,36 @@ export function CartaoMediaSimulados({
             </div>
           </div>
 
-          <div className="pointer-events-auto flex items-center gap-3 text-sm">
-            {rotuloTendencia && (
-              <SeloTendencia emAlta={emAlta} emBaixa={emBaixa} rotulo={rotuloTendencia} />
-            )}
-            <span className="hidden text-texto-fraco sm:inline">
-              {baseline
-                ? 'Base inicial'
-                : pontos.length === 3
-                  ? 'Simulados 1–3'
-                  : `${pontos.length} tentativas`}
-            </span>
+          {/* Do mesmo lado do gráfico (a região sangra pela direita), no topo —
+              é a referência contra a qual "Sua média" é lida. */}
+          <div className="pointer-events-auto text-right text-sm">
+            <p className="text-texto-fraco">Média da plataforma</p>
+            <p className="font-medium text-texto">
+              {mediaGeral === null ? '-' : `${Math.round(mediaGeral)}/${totalQuestoes}`}
+            </p>
           </div>
         </div>
 
         <div className="mt-5 font-display text-[46px] font-semibold leading-none tracking-tight sm:text-[64px]">
-          {Math.round(mediaPessoal ?? 0)}
-          <span className="text-lg text-texto-fraco">/{totalQuestoes}</span>
+          {mediaUsuario === null ? (
+            '-'
+          ) : (
+            <>
+              {Math.round(mediaUsuario)}
+              <span className="text-lg text-texto-fraco">/{totalQuestoes}</span>
+            </>
+          )}
         </div>
+
+        {(emAlta || emBaixa) && (
+          <div
+            className="pointer-events-auto mt-1 flex items-center gap-1 text-sm font-medium"
+            style={{ color: emAlta ? 'var(--cor-acerto)' : 'var(--cor-erro)' }}
+          >
+            <IconeTendencia direcao={emAlta ? 'alta' : 'baixa'} className="size-4" />
+            {Math.abs(diferenca ?? 0)}% {emAlta ? 'acima' : 'abaixo'} da média
+          </div>
+        )}
       </div>
 
       {/* Rodapé opaco: passo desde a última tentativa + pico/vale/média */}
@@ -361,11 +377,7 @@ export function CartaoMediaSimulados({
               </span>{' '}
               <span className="text-texto-fraco">desde a tentativa anterior</span>
             </>
-          ) : (
-            <span className="text-texto-fraco">
-              Média da plataforma {mediaGeral === null ? '—' : `${Math.round(mediaGeral)}/${totalQuestoes}`}
-            </span>
-          )}
+          ) : null}
         </div>
         <div className="flex items-center gap-2.5 text-xs text-texto-fraco">
           <span>

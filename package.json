@@ -18,7 +18,9 @@
     "testar:conta": "node --env-file=.env.local scripts/testar-conta.mjs",
     "testar:acesso": "node --env-file=.env.local scripts/testar-acesso.mjs",
     "testar:area-fraca": "tsx scripts/testar-area-mais-fraca.mjs",
-    "dev:usuario": "node --env-file=.env.local scripts/criar-usuario-dev.mjs"
+    "testar:liberacao": "tsx scripts/testar-liberacao-simulados.mjs",
+    "dev:usuario": "node --env-file=.env.local scripts/criar-usuario-dev.mjs",
+    "acesso:manual": "node --env-file=.env.local scripts/liberar-acesso-manual.mjs"
   },
   "dependencies": {
     "@sentry/nextjs": "^10.73.0",

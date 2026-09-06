@@ -39,7 +39,7 @@ export default async function ComboPage() {
           </h1>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-texto-suave">
             Uma questão de cada vez, contra o relógio. Erre ou deixe o tempo acabar e o combo
-            zera — quantas vezes você quiser tentar de novo.
+            zera, mas você pode tentar de novo quantas vezes quiser.
           </p>
         </header>
 

@@ -74,7 +74,7 @@ export default async function PerfilPage() {
           <div>
             <dt className="text-sm font-medium">Acesso desde</dt>
             <dd className="mt-1 text-sm text-texto-suave">
-              {perfil?.criado_em ? formatarData(perfil.criado_em) : '—'}
+              {perfil?.criado_em ? formatarData(perfil.criado_em) : '-'}
             </dd>
           </div>
         </dl>

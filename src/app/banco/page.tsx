@@ -15,7 +15,6 @@ function texto(valor: string | string[] | undefined) {
 export default async function BancoPage({ searchParams }: PageProps<'/banco'>) {
   const params = await searchParams
   const fArea = texto(params.area)
-  const fSubtema = texto(params.subtema)
   const fAno = texto(params.ano)
   const fStatus = texto(params.status) // 'respondida' | 'nao_respondida'
   const fFavoritas = texto(params.favoritas) === '1'
@@ -36,7 +35,6 @@ export default async function BancoPage({ searchParams }: PageProps<'/banco'>) {
     .eq('tipo', 'banco')
     .eq('status', STATUS_APROVADA)
   if (fArea) query = query.eq('area', fArea)
-  if (fSubtema) query = query.eq('subtema', fSubtema)
   if (fAno) query = query.eq('ano_origem', Number(fAno))
 
   const [{ data: catalogo }, { data: respostas }, { data: encontradas }] = await Promise.all([
@@ -44,7 +42,7 @@ export default async function BancoPage({ searchParams }: PageProps<'/banco'>) {
     // vale trazer e agrupar aqui em vez de manter uma view só para isso.
     supabase
       .from('questoes')
-      .select('id, area, subtema, ano_origem')
+      .select('id, area, ano_origem')
       .eq('tipo', 'banco')
       .eq('status', STATUS_APROVADA),
     supabase
@@ -70,14 +68,6 @@ export default async function BancoPage({ searchParams }: PageProps<'/banco'>) {
   const favoritadas = new Set((respostas ?? []).filter((r) => r.favorito).map((r) => r.questao_id))
 
   const areas = [...new Set((catalogo ?? []).map((q) => q.area))].sort()
-  const subtemas = [
-    ...new Set(
-      (catalogo ?? [])
-        .filter((q) => !fArea || q.area === fArea)
-        .map((q) => q.subtema)
-        .filter((s): s is string => !!s),
-    ),
-  ].sort()
   const anos = [
     ...new Set((catalogo ?? []).map((q) => q.ano_origem).filter((a): a is number => !!a)),
   ].sort((a, b) => b - a)
@@ -122,16 +112,15 @@ export default async function BancoPage({ searchParams }: PageProps<'/banco'>) {
         {respondidas.size === 1 ? 'questão já respondida' : 'questões já respondidas'}.
       </p>
 
-      {/* No telefone a questão vem primeiro: rolar por cinco filtros antes de
+      {/* No telefone a questão vem primeiro: rolar pelos filtros antes de
           ver qualquer conteúdo é atrito puro. No desktop os filtros voltam a
           ser a coluna da esquerda. */}
       <div className="mt-6 grid gap-6 lg:grid-cols-[220px_1fr]">
         <div className="order-2 lg:order-1">
           <Filtros
             areas={areas}
-            subtemas={subtemas}
             anos={anos}
-            selecionados={{ fArea, fSubtema, fAno, fStatus, fFavoritas }}
+            selecionados={{ fArea, fAno, fStatus, fFavoritas }}
           />
         </div>
 
@@ -149,9 +138,9 @@ export default async function BancoPage({ searchParams }: PageProps<'/banco'>) {
             />
           ) : (
             <PraticarBanco
-              key={`${fArea}-${fSubtema}-${fAno}-${fStatus}-${fFavoritas}`}
+              key={`${fArea}-${fAno}-${fStatus}-${fFavoritas}`}
               questoes={questoes}
-              mostrarTotal={!!(fArea || fSubtema || fAno || fStatus || fFavoritas)}
+              mostrarTotal={!!(fArea || fAno || fStatus || fFavoritas)}
               estadoInicial={(respostas ?? []).map((r) => ({
                 questao_id: r.questao_id,
                 alternativa_escolhida: r.alternativa_escolhida,
@@ -175,7 +164,7 @@ function Moldura({ children }: { children: React.ReactNode }) {
             Banco de questões
           </h1>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-texto-suave">
-            Treino avulso, com correção e comentário na hora — ao contrário do simulado, aqui
+            Treino avulso, com correção e comentário na hora. Ao contrário do simulado, aqui
             você descobre na mesma hora se acertou.
           </p>
         </header>
@@ -195,7 +184,7 @@ function BancoVazio() {
     <EstadoVazio
       icone={<IconeEmProducao className="size-7" />}
       titulo="Banco de questões em produção"
-      descricao="As questões comentadas estão sendo escritas e revisadas agora, com filtros por área, subtema e ano. Elas aparecem aqui automaticamente assim que ficarem prontas — sem precisar de nada da sua parte."
+      descricao="As questões comentadas estão sendo escritas e revisadas agora, com filtros por área e ano. Elas aparecem aqui automaticamente assim que ficarem prontas, sem precisar de nada da sua parte."
       acoes={
         <>
           <Link href="/simulados" className={botaoPrimario}>
@@ -212,23 +201,20 @@ function BancoVazio() {
 
 function Filtros({
   areas,
-  subtemas,
   anos,
   selecionados,
 }: {
   areas: string[]
-  subtemas: string[]
   anos: number[]
   selecionados: {
     fArea?: string
-    fSubtema?: string
     fAno?: string
     fStatus?: string
     fFavoritas: boolean
   }
 }) {
-  const { fArea, fSubtema, fAno, fStatus, fFavoritas } = selecionados
-  const temFiltro = !!(fArea || fSubtema || fAno || fStatus || fFavoritas)
+  const { fArea, fAno, fStatus, fFavoritas } = selecionados
+  const temFiltro = !!(fArea || fAno || fStatus || fFavoritas)
 
   return (
     // Formulário GET: os filtros ficam na URL, então o estado é compartilhável,
@@ -244,7 +230,6 @@ function Filtros({
       </p>
 
       <Campo rotulo="Área" nome="area" valor={fArea} opcoes={areas} />
-      <Campo rotulo="Subtema" nome="subtema" valor={fSubtema} opcoes={subtemas} />
       <Campo
         rotulo="Ano de origem"
         nome="ano"

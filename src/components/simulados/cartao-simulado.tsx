@@ -7,7 +7,7 @@ import { useEffect, useRef, useState, useTransition } from 'react'
 import { iniciarSimulado } from '@/app/actions/simulado'
 import { IconeCronometro, IconeEmProducao, IconeSeta } from '@/components/ui/icones'
 import { botaoPrimario, botaoSecundario } from '@/components/ui/primitivos'
-import { TOTAL_QUESTOES } from '@/lib/simulado'
+import { TOTAL_QUESTOES, formatarTempo, tempoParaLeitorDeTela } from '@/lib/simulado'
 
 type Props = {
   numero: number
@@ -15,6 +15,47 @@ type Props = {
   emAndamento: boolean
   melhorNota: number | null
   indice?: number
+  /** Decidido no servidor (ver simulados/page.tsx) — o cliente só interpola o tique do cronômetro. */
+  bloqueadoPorTempo?: boolean
+  /** Instante em que este simulado se libera (12h/24h após o primeiro login), ou `null` se já liberado/sem trava. */
+  liberaEm?: string | null
+}
+
+/**
+ * Cronômetro regressivo até a liberação do simulado — só os dígitos, de
+ * propósito: mostrar "libera em 11h32min" entregaria a régua exata de 12h/24h
+ * usada para o pacing, o que não é informação que precisa ficar explícita.
+ * Mesmo padrão de `Cronometro` (prova): recalcula a partir do alvo a cada
+ * tick, começa nulo para não gerar mismatch entre SSR e hidratação.
+ */
+function ContagemLiberacao({ alvo }: { alvo: string }) {
+  const [restantes, setRestantes] = useState<number | null>(null)
+
+  useEffect(() => {
+    function tick() {
+      const r = Math.max(0, Math.floor((new Date(alvo).getTime() - Date.now()) / 1000))
+      setRestantes(r)
+      return r
+    }
+    if (tick() <= 0) return
+    const id = setInterval(() => {
+      if (tick() <= 0) clearInterval(id)
+    }, 1000)
+    return () => clearInterval(id)
+  }, [alvo])
+
+  return (
+    <div
+      className="flex w-full items-center justify-center gap-2 rounded-xl border border-borda
+                 bg-superficie-2 px-4 py-2.5 font-mono text-sm font-semibold tabular-nums text-texto-suave"
+    >
+      <IconeCronometro className="size-4 shrink-0" aria-hidden="true" />
+      <span aria-hidden="true">{restantes === null ? '--:--:--' : formatarTempo(restantes)}</span>
+      <span className="sr-only" role="timer" aria-live="off">
+        {restantes === null ? 'Carregando' : tempoParaLeitorDeTela(restantes)}
+      </span>
+    </div>
+  )
 }
 
 export function CartaoSimulado({
@@ -23,10 +64,13 @@ export function CartaoSimulado({
   emAndamento,
   melhorNota,
   indice = 0,
+  bloqueadoPorTempo = false,
+  liberaEm = null,
 }: Props) {
   const [mostrandoRegras, setMostrandoRegras] = useState(false)
   const reduzir = useReducedMotion()
   const disponivel = totalQuestoes > 0
+  const mostrarContagem = disponivel && bloqueadoPorTempo && !!liberaEm
 
   const status = !disponivel
     ? { texto: 'Em produção', classe: 'bg-superficie-2 text-texto-fraco' }
@@ -91,6 +135,8 @@ export function CartaoSimulado({
             >
               Em breve
             </button>
+          ) : mostrarContagem && liberaEm ? (
+            <ContagemLiberacao alvo={liberaEm} />
           ) : emAndamento ? (
             <Link
               href={`/simulados/${numero}/prova`}
@@ -158,7 +204,7 @@ function ModalRegras({
       <strong className="text-texto">Sem pausa.</strong> O cronômetro corre mesmo se você fechar
       a aba.
     </>,
-    <>Suas respostas são salvas a cada clique — se a página cair, você volta de onde parou.</>,
+    <>Suas respostas são salvas a cada clique. Se a página cair, você volta de onde parou.</>,
     <>
       Ao acabar o tempo, a prova é{' '}
       <strong className="text-texto">enviada automaticamente</strong>.

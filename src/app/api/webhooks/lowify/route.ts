@@ -19,7 +19,10 @@ const STATUS_REVOGA_ACESSO = new Set(['reembolsado', 'chargeback', 'cancelado'])
  *   `acesso_liberado_em` se ainda não estava marcada.
  * - `status` em reembolsado/chargeback/cancelado: limpa `acesso_liberado_em`
  *   se a conta existir — a partir da próxima requisição o middleware
- *   (src/lib/supabase/middleware.ts) já desloga e barra o acesso.
+ *   (src/lib/supabase/middleware.ts) já desloga e barra o acesso. Exceto para
+ *   contas com `acesso_manual_em` marcada (liberadas fora do fluxo de compra
+ *   por scripts/liberar-acesso-manual.mjs): essas nunca são revogadas por
+ *   aqui, mesmo que um evento de reembolso chegue com o mesmo e-mail.
  *
  * Idempotente por `evento_id`: reentrega do mesmo evento faz upsert, nunca
  * duplica nem processa duas vezes — e `interpretarEventoLowify` (ver
@@ -108,7 +111,14 @@ export async function POST(request: Request) {
         .eq('id', usuarioId)
         .is('acesso_liberado_em', null)
     } else if (STATUS_REVOGA_ACESSO.has(evento.status)) {
-      await admin.from('usuarios').update({ acesso_liberado_em: null }).eq('id', usuarioId)
+      // .is('acesso_manual_em', null) protege contas liberadas manualmente
+      // (scripts/liberar-acesso-manual.mjs, fora do fluxo de compra) — a
+      // cláusula não bate pra elas, então o update não afeta nenhuma linha.
+      await admin
+        .from('usuarios')
+        .update({ acesso_liberado_em: null })
+        .eq('id', usuarioId)
+        .is('acesso_manual_em', null)
     }
   }
 

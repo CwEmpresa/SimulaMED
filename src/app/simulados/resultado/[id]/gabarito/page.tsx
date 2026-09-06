@@ -97,7 +97,7 @@ export default async function GabaritoPage({
 
         <header className="mb-6">
           <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
-            Gabarito — Simulado {tentativa.simulado_numero}
+            Gabarito · Simulado {tentativa.simulado_numero}
           </h1>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-texto-suave">
             Todas as 100 questões, com sua resposta, a resposta correta e o porquê de cada uma.

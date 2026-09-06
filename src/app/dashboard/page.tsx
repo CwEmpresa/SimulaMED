@@ -45,19 +45,26 @@ function formatarDataDeHoje() {
 }
 
 /**
- * Base inicial da plataforma: com poucos alunos ainda finalizando simulados,
- * `media_geral_plataforma()` volta nulo e o cartão de média nasceria vazio —
- * o que parece produto quebrado, não produto novo. Enquanto não há tentativas
- * reais suficientes, usamos esta média e esta série de exemplo (rotuladas como
- * "Média da plataforma"/"Base inicial" no cartão, nunca atribuídas ao aluno)
- * só para o cartão não nascer em branco. Assim que a média real existir, ela
- * substitui isto automaticamente — nada aqui é lido de volta do banco.
+ * Média da plataforma: fixa em 65/100 enquanto a base de alunos ainda é
+ * pequena demais para uma média real ter algum significado (poucas dezenas
+ * de tentativas, fácil de um usuário só puxar o número pra qualquer lado).
+ * Também alimenta a série de exemplo do gráfico quando o aluno ainda não tem
+ * nenhuma tentativa própria (rotulada "Média da plataforma" no cartão, nunca
+ * atribuída a ele) só para o cartão não nascer em branco.
+ *
+ * A série varia semana a semana (sobe e desce um pouco) em vez de subir em
+ * linha reta, pra não parecer uma régua perfeita — mas a variação é pequena,
+ * do tamanho do que uma média real oscilaria de uma semana pra outra.
  */
-const MEDIA_PLATAFORMA_BASE = 65.03
+const MEDIA_PLATAFORMA_BASE = 65
 const PONTOS_BASE_PLATAFORMA: PontoMediaSimulado[] = [
-  { rotulo: 'Lançamento', nota: 58 },
-  { rotulo: 'Semana 2', nota: 65 },
-  { rotulo: 'Hoje', nota: 72 },
+  { rotulo: 'Semana 1', nota: 62 },
+  { rotulo: 'Semana 2', nota: 67 },
+  { rotulo: 'Semana 3', nota: 64 },
+  { rotulo: 'Semana 4', nota: 68 },
+  { rotulo: 'Semana 5', nota: 63 },
+  { rotulo: 'Semana 6', nota: 66 },
+  { rotulo: 'Hoje', nota: 65 },
 ]
 
 export default async function DashboardPage() {
@@ -272,6 +279,7 @@ export default async function DashboardPage() {
           <CartaoMediaSimulados
             pontos={pontosMedia}
             mediaGeral={mediaGeral}
+            mediaUsuario={mediaPessoal}
             diferenca={diferencaGeral}
             totalQuestoes={TOTAL_QUESTOES}
             baseline={usaMediaBase}
@@ -374,7 +382,7 @@ export default async function DashboardPage() {
             <AnelProgresso
               percentual={aproveitamentoBanco}
               rotulo="Aproveitamento no banco"
-              valorCentral={aproveitamentoBanco === null ? '—' : `${aproveitamentoBanco}%`}
+              valorCentral={aproveitamentoBanco === null ? '-' : `${aproveitamentoBanco}%`}
             />
             <p className="mt-3 text-xs text-texto-fraco">
               {!totalBanco
@@ -465,7 +473,7 @@ export default async function DashboardPage() {
               </ul>
             ) : (
               <p className="mt-6 rounded-xl bg-superficie-2 px-4 py-3 text-sm text-texto-suave">
-                Sem dados ainda — faça um simulado para começar a ver isso aqui.
+                Sem dados ainda. Faça um simulado para começar a ver isso aqui.
               </p>
             )}
           </div>
@@ -481,7 +489,7 @@ export default async function DashboardPage() {
                 </h3>
                 <p className="mt-2 flex items-center gap-2 text-sm text-contraste-texto-suave">
                   <IconeAlerta className="size-4 shrink-0" />
-                  Em andamento — o cronômetro não para.
+                  Em andamento, o cronômetro não para.
                 </p>
                 <Link
                   href={`/simulados/${emAndamentoAtual.simulado_numero}/prova`}
@@ -501,7 +509,7 @@ export default async function DashboardPage() {
                 <p className="mt-2 flex-1 text-sm leading-relaxed text-contraste-texto-suave">
                   {simuladosConcluidos < 3
                     ? 'Comece o próximo simulado quando estiver pronto.'
-                    : 'Você já concluiu os três — hora de focar no banco de questões e nos erros.'}
+                    : 'Você já concluiu os três, hora de focar no banco de questões e nos erros.'}
                 </p>
                 <Link
                   href={simuladosConcluidos < 3 ? '/simulados' : '/banco'}

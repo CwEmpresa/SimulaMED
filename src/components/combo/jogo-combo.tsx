@@ -20,9 +20,9 @@ const CAMPO_ALTERNATIVA = {
 } as const satisfies Record<Alternativa, keyof QuestaoBanco>
 
 /** Janela por questão. Curta o bastante pra criar tensão, longa o bastante pra ler o enunciado. */
-const SEGUNDOS_POR_QUESTAO = 18
-/** Abaixo disso o contador vira vermelho — mesmo princípio do cronômetro do Modo Prova. */
-const SEGUNDOS_CRITICOS = 5
+const SEGUNDOS_POR_QUESTAO = 45
+/** Abaixo disso o contador vira vermelho e o card pulsa, mesmo princípio do cronômetro do Modo Prova. */
+const SEGUNDOS_CRITICOS = 10
 
 type Fase = 'inicio' | 'jogando' | 'fim'
 
@@ -58,13 +58,18 @@ function CronometroQuestao({
   critico,
   pausado,
   onEsgotar,
+  aoMudarCritico,
 }: {
   duracao: number
   critico: number
   pausado: boolean
   onEsgotar: () => void
+  /** Avisa o card em volta para entrar (ou sair) do alerta visual. */
+  aoMudarCritico: (critico: boolean) => void
 }) {
   const [segundos, setSegundos] = useState(duracao)
+  const reduzirMovimento = useReducedMotion()
+  const emCritico = segundos <= critico
 
   useEffect(() => {
     if (pausado || segundos <= 0) return
@@ -77,15 +82,29 @@ function CronometroQuestao({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [segundos, pausado])
 
+  useEffect(() => {
+    aoMudarCritico(emCritico)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [emCritico])
+
   return (
-    <div
-      className={`flex items-center gap-1.5 text-sm font-medium tabular-nums ${
-        segundos <= critico ? 'text-erro' : 'text-texto-suave'
-      }`}
+    <motion.div
+      className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 font-mono text-xl font-bold
+                  tabular-nums ${
+                    emCritico
+                      ? 'border-erro/50 bg-erro-suave text-erro'
+                      : 'border-borda bg-superficie-2 text-texto'
+                  }`}
+      animate={emCritico && !reduzirMovimento ? { opacity: [1, 0.55, 1] } : { opacity: 1 }}
+      transition={
+        emCritico && !reduzirMovimento
+          ? { duration: 1.6, repeat: Infinity, ease: 'easeInOut' }
+          : { duration: 0.2 }
+      }
     >
-      <IconeCronometro className="size-4" />
+      <IconeCronometro className="size-5" />
       {segundos}s
-    </div>
+    </motion.div>
   )
 }
 
@@ -107,6 +126,7 @@ export function JogoCombo({
   const [correcao, setCorrecao] = useState<Correcao | null>(null)
   const [carregando, setCarregando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+  const [tempoCritico, setTempoCritico] = useState(false)
   const reduzirMovimento = useReducedMotion()
 
   // "Últimos valores" lidos pelo efeito de persistência do recorde (abaixo),
@@ -154,6 +174,7 @@ export function JogoCombo({
     setCorrecao(null)
     setErro(null)
     setNovoRecorde(false)
+    setTempoCritico(false)
     setFase('jogando')
   }
 
@@ -215,7 +236,7 @@ export function JogoCombo({
           <IconeRaio className="size-7" />
         </span>
         <p className="mt-5 text-sm text-texto-suave">
-          {recordeInicial > 0 ? 'Seu recorde' : 'Você ainda não tem recorde — que tal o primeiro?'}
+          {recordeInicial > 0 ? 'Seu recorde' : 'Você ainda não tem recorde, que tal o primeiro?'}
         </p>
         {recordeInicial > 0 && (
           <p className="font-display text-5xl font-semibold tabular-nums tracking-tight text-acento">
@@ -224,7 +245,7 @@ export function JogoCombo({
         )}
         <p className="mx-auto mt-4 max-w-sm text-sm leading-relaxed text-texto-suave">
           {SEGUNDOS_POR_QUESTAO} segundos por questão. Acerte para manter o combo, erre ou deixe o
-          tempo passar e a sessão termina ali — sem limite de tentativas por dia.
+          tempo passar e a sessão termina ali. Sem limite de tentativas por dia.
         </p>
         <button type="button" onClick={iniciar} className={`${botaoPrimario} mt-6`}>
           Começar
@@ -279,6 +300,7 @@ export function JogoCombo({
           critico={SEGUNDOS_CRITICOS}
           pausado={!!correcao}
           onEsgotar={() => finalizarSessao(combo)}
+          aoMudarCritico={setTempoCritico}
         />
       </div>
 
@@ -294,8 +316,18 @@ export function JogoCombo({
           initial={reduzirMovimento ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.2 }}
-          className="mt-3 rounded-xl border border-borda bg-superficie p-5 sm:p-6"
+          className={`relative mt-3 rounded-xl border p-5 transition-colors duration-300 sm:p-6 ${
+            tempoCritico ? 'border-erro bg-erro-suave/20' : 'border-borda bg-superficie'
+          }`}
         >
+          {tempoCritico && !reduzirMovimento && (
+            <motion.span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 rounded-xl ring-2 ring-erro"
+              animate={{ opacity: [0.25, 1, 0.25] }}
+              transition={{ duration: 1.1, repeat: Infinity, ease: 'easeInOut' }}
+            />
+          )}
           <div className="flex flex-wrap items-center gap-2 text-xs text-texto-suave">
             <span className="rounded bg-superficie-2 px-2 py-0.5 font-medium">
               {questaoAtual.area}

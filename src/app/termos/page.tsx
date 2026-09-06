@@ -23,14 +23,14 @@ export default function TermosDeUsoPage() {
         <h1 className="mt-4 font-display text-2xl font-semibold tracking-tight sm:text-3xl">
           Termos de Uso
         </h1>
-        <p className="mt-2 text-sm text-texto-suave">Última atualização: [DATA].</p>
+        <p className="mt-2 text-sm text-texto-suave">Última atualização: 06/09/2026.</p>
       </header>
 
       <div className="space-y-6 text-sm leading-relaxed text-texto">
         <p>
           Estes Termos de Uso regulam o acesso e uso da plataforma {NOME_PRODUTO} (“Plataforma”),
-          operada por [RAZÃO SOCIAL], CNPJ [CNPJ], com sede em [ENDEREÇO] (“nós”). Ao criar uma
-          conta ou usar a Plataforma, você (“aluno”) concorda com estes termos.
+          operada pela SemioLab, com sede em São Paulo, SP (“nós”). Ao criar uma conta ou usar a
+          Plataforma, você (“aluno”) concorda com estes termos.
         </p>
 
         <section>
@@ -46,7 +46,7 @@ export default function TermosDeUsoPage() {
           <h2 className="font-display text-base font-semibold">2. Cadastro e acesso</h2>
           <p className="mt-2">
             O acesso é liberado automaticamente quando sua compra é aprovada. Para entrar, basta
-            informar o e-mail usado na compra em nossa tela de acesso — não há senha nem link
+            informar o e-mail usado na compra em nossa tela de acesso. Não há senha nem link
             enviado por e-mail. Você é responsável por manter o e-mail usado na compra sob seu
             controle e por toda atividade realizada na sua conta.
           </p>
@@ -81,7 +81,7 @@ export default function TermosDeUsoPage() {
           <h2 className="font-display text-base font-semibold">6. Pagamento e reembolso</h2>
           <p className="mt-2">
             A compra é processada por um parceiro de pagamentos (Lowify). Prazos e condições de
-            reembolso seguem [POLÍTICA DE REEMBOLSO — prazo, condições e onde solicitar] e a
+            reembolso seguem [POLÍTICA DE REEMBOLSO: prazo, condições e onde solicitar] e a
             legislação aplicável (Código de Defesa do Consumidor, incluindo o direito de
             arrependimento em compras online).
           </p>
@@ -99,7 +99,7 @@ export default function TermosDeUsoPage() {
           <h2 className="font-display text-base font-semibold">8. Disponibilidade e mudanças</h2>
           <p className="mt-2">
             Podemos alterar, suspender ou descontinuar funcionalidades da Plataforma, e podemos
-            atualizar estes Termos a qualquer momento — a versão vigente é sempre a publicada
+            atualizar estes Termos a qualquer momento. A versão vigente é sempre a publicada
             nesta página, com a data de atualização no topo.
           </p>
         </section>
@@ -115,8 +115,8 @@ export default function TermosDeUsoPage() {
         <section>
           <h2 className="font-display text-base font-semibold">10. Lei aplicável e foro</h2>
           <p className="mt-2">
-            Estes Termos são regidos pela lei brasileira. Fica eleito o foro da comarca de
-            [CIDADE/UF] para dirimir eventuais controvérsias, com renúncia a qualquer outro, por
+            Estes Termos são regidos pela lei brasileira. Fica eleito o foro da comarca de São
+            Paulo, SP para dirimir eventuais controvérsias, com renúncia a qualquer outro, por
             mais privilegiado que seja.
           </p>
         </section>
@@ -124,7 +124,7 @@ export default function TermosDeUsoPage() {
         <section>
           <h2 className="font-display text-base font-semibold">11. Contato</h2>
           <p className="mt-2">
-            Dúvidas sobre estes Termos: [E-MAIL DE CONTATO]. Veja também a nossa{' '}
+            Dúvidas sobre estes Termos: suporte.semiolab@gmail.com. Veja também a nossa{' '}
             <Link href="/privacidade" className="text-acento underline underline-offset-4">
               Política de Privacidade
             </Link>

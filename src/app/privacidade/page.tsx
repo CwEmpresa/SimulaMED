@@ -23,14 +23,14 @@ export default function PoliticaDePrivacidadePage() {
         <h1 className="mt-4 font-display text-2xl font-semibold tracking-tight sm:text-3xl">
           Política de Privacidade
         </h1>
-        <p className="mt-2 text-sm text-texto-suave">Última atualização: [DATA].</p>
+        <p className="mt-2 text-sm text-texto-suave">Última atualização: 06/09/2026.</p>
       </header>
 
       <div className="space-y-6 text-sm leading-relaxed text-texto">
         <p>
-          Esta política explica quais dados a {NOME_PRODUTO}, operada por [RAZÃO SOCIAL], CNPJ
-          [CNPJ] (“nós”), coleta, para que usa e quais direitos você tem sobre eles, em linha com
-          a Lei Geral de Proteção de Dados (LGPD, Lei 13.709/2018).
+          Esta política explica quais dados a {NOME_PRODUTO}, operada pela SemioLab, com sede em
+          São Paulo, SP (“nós”), coleta, para que usa e quais direitos você tem sobre eles, em
+          linha com a Lei Geral de Proteção de Dados (LGPD, Lei 13.709/2018).
         </p>
 
         <section>
@@ -39,11 +39,11 @@ export default function PoliticaDePrivacidadePage() {
             <li>Cadastro: nome e e-mail.</li>
             <li>
               Uso da Plataforma: respostas de simulados e do banco de questões, tempo de prova,
-              notas e progresso — para gerar seu diagnóstico de desempenho e caderno de erros.
+              notas e progresso, para gerar seu diagnóstico de desempenho e caderno de erros.
             </li>
             <li>
               Compra: quando processada pelo nosso parceiro de pagamentos (Lowify), recebemos
-              e-mail, status e identificador da compra para liberar seu acesso — não recebemos
+              e-mail, status e identificador da compra para liberar seu acesso. Não recebemos
               dados de cartão.
             </li>
             <li>Dados técnicos: cookies de sessão necessários para manter você conectado.</li>
@@ -74,11 +74,11 @@ export default function PoliticaDePrivacidadePage() {
             como operador dos dados que processa em nosso nome:
           </p>
           <ul className="mt-2 list-disc space-y-1 pl-5">
-            <li>Supabase — hospedagem do banco de dados e autenticação.</li>
-            <li>Vercel — hospedagem da aplicação.</li>
-            <li>Lowify — processamento do pagamento da sua compra.</li>
+            <li>Supabase: hospedagem do banco de dados e autenticação.</li>
+            <li>Vercel: hospedagem da aplicação.</li>
+            <li>Lowify: processamento do pagamento da sua compra.</li>
             <li>
-              [Sentry, quando ativado — monitoramento de erros técnicos da aplicação; recebe
+              [Sentry, quando ativado: monitoramento de erros técnicos da aplicação; recebe
               detalhes técnicos do erro, não recebe suas respostas de prova].
             </li>
           </ul>
@@ -110,8 +110,8 @@ export default function PoliticaDePrivacidadePage() {
           <h2 className="font-display text-base font-semibold">7. Segurança</h2>
           <p className="mt-2">
             Seus dados ficam protegidos por controle de acesso por linha (Row Level Security) no
-            banco de dados — cada aluno só acessa as próprias tentativas, respostas e caderno de
-            erros — e o login não usa senha (link de acesso único por e-mail).
+            banco de dados: cada aluno só acessa as próprias tentativas, respostas e caderno de
+            erros. O login não usa senha (link de acesso único por e-mail).
           </p>
         </section>
 
@@ -126,7 +126,7 @@ export default function PoliticaDePrivacidadePage() {
         <section>
           <h2 className="font-display text-base font-semibold">9. Alterações</h2>
           <p className="mt-2">
-            Podemos atualizar esta política — a versão vigente é sempre a publicada nesta página,
+            Podemos atualizar esta política. A versão vigente é sempre a publicada nesta página,
             com a data de atualização no topo.
           </p>
         </section>
@@ -135,7 +135,7 @@ export default function PoliticaDePrivacidadePage() {
           <h2 className="font-display text-base font-semibold">10. Contato</h2>
           <p className="mt-2">
             Para exercer seus direitos de titular de dados ou tirar dúvidas sobre esta política:
-            [E-MAIL DO ENCARREGADO/DPO OU CONTATO]. Veja também os nossos{' '}
+            suporte.semiolab@gmail.com. Veja também os nossos{' '}
             <Link href="/termos" className="text-acento underline underline-offset-4">
               Termos de Uso
             </Link>

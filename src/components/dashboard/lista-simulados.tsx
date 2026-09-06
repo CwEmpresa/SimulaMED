@@ -65,7 +65,7 @@ export function ListaSimulados({ linhas }: { linhas: LinhaSimulado[] }) {
                   <span className="text-texto-fraco">/{TOTAL_QUESTOES}</span>
                 </>
               ) : (
-                <span className="text-texto-fraco">—</span>
+                <span className="text-texto-fraco">-</span>
               )}
             </span>
 

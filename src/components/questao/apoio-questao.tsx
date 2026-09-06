@@ -34,7 +34,7 @@ export function TabelaDadosQuestao({ tabela }: { tabela: TabelaDados | null | un
             <tr key={i} className={i % 2 === 1 ? 'bg-superficie-2/50' : undefined}>
               {linha.map((valor, ci) => (
                 <td key={ci} className={`px-3 py-2 ${ci === 0 ? 'font-medium' : 'tabular-nums'}`}>
-                  {valor ?? '—'}
+                  {valor ?? '-'}
                 </td>
               ))}
             </tr>

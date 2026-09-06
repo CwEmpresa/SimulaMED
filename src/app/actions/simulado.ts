@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 import { createClient } from '@/lib/supabase/server'
-import { DURACAO_PROVA_SEGUNDOS, type Alternativa } from '@/lib/simulado'
+import { DURACAO_PROVA_SEGUNDOS, simuladoLiberado, type Alternativa } from '@/lib/simulado'
 
 /** Erro esperado de regra de negócio (prova acabada, sem permissão, etc.). */
 type Resultado = { ok: true } | { ok: false; motivo: string }
@@ -59,6 +59,17 @@ export async function iniciarSimulado(simuladoNumero: number) {
     .maybeSingle()
 
   if (emAndamento) redirect(`/simulados/${simuladoNumero}/prova`)
+
+  // Defesa no servidor, não só na UI: mesmo que o cartão de "Em breve" seja
+  // contornado, esta action é o único lugar que de fato cria a tentativa.
+  const { data: perfil } = await supabase
+    .from('usuarios')
+    .select('primeiro_login_em')
+    .eq('id', user.id)
+    .maybeSingle()
+  if (!simuladoLiberado(simuladoNumero, perfil?.primeiro_login_em ?? null)) {
+    redirect('/simulados')
+  }
 
   const { error } = await supabase.from('tentativas_simulado').insert({
     usuario_id: user.id,

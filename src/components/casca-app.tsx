@@ -7,6 +7,7 @@ import {
   IconeBanco,
   IconeCaderno,
   IconeDiagnostico,
+  IconeRaio,
   IconeSimulado,
   IconeUsuario,
 } from '@/components/ui/icones'
@@ -14,6 +15,7 @@ import {
 const SECOES = [
   { href: '/simulados', rotulo: 'Simulados', Icone: IconeSimulado },
   { href: '/banco', rotulo: 'Banco', Icone: IconeBanco },
+  { href: '/combo', rotulo: 'Combo', Icone: IconeRaio },
   { href: '/cadernos', rotulo: 'Cadernos', Icone: IconeCaderno },
   { href: '/diagnostico', rotulo: 'Diagnóstico', Icone: IconeDiagnostico },
 ] as const
@@ -83,7 +85,7 @@ export function CascaApp({ children }: { children: React.ReactNode }) {
         className="fixed inset-x-0 bottom-0 z-20 border-t border-borda bg-superficie/95
                    backdrop-blur-md md:hidden"
       >
-        <ul className="mx-auto grid max-w-md grid-cols-4">
+        <ul className="mx-auto grid max-w-lg grid-cols-5">
           {SECOES.map(({ href, rotulo, Icone }) => (
             <li key={href}>
               <Link

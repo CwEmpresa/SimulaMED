@@ -48,6 +48,15 @@ await admin
   .eq('id', usuario.id)
   .is('acesso_liberado_em', null)
 
+// Mesma lógica para primeiro_login_em: sem isso, os Simulados 2 e 3 (liberados
+// 12h/24h após o primeiro login) ficariam bloqueados para sempre no ambiente
+// de dev, já que /dev/login não passa por entrarComEmail (quem marca isso lá).
+await admin
+  .from('usuarios')
+  .update({ primeiro_login_em: new Date().toISOString() })
+  .eq('id', usuario.id)
+  .is('primeiro_login_em', null)
+
 if (process.argv.includes('--limpar')) {
   await admin.from('caderno_erros').delete().eq('usuario_id', usuario.id)
   await admin.from('respostas_banco').delete().eq('usuario_id', usuario.id)

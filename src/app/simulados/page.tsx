@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { CascaApp } from '@/components/casca-app'
 import { CartaoSimulado } from '@/components/simulados/cartao-simulado'
 import { STATUS_APROVADA } from '@/lib/questoes'
-import { SIMULADOS } from '@/lib/simulado'
+import { SIMULADOS, instanteDeLiberacao, simuladoLiberado } from '@/lib/simulado'
 import { createClient } from '@/lib/supabase/server'
 
 export default async function SimuladosPage() {
@@ -13,7 +13,7 @@ export default async function SimuladosPage() {
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: questoes }, { data: tentativas }] = await Promise.all([
+  const [{ data: questoes }, { data: tentativas }, { data: perfil }] = await Promise.all([
     supabase
       .from('questoes')
       .select('simulado_numero')
@@ -23,6 +23,7 @@ export default async function SimuladosPage() {
       .from('tentativas_simulado')
       .select('simulado_numero, status, nota')
       .eq('usuario_id', user.id),
+    supabase.from('usuarios').select('primeiro_login_em').eq('id', user.id).maybeSingle(),
   ])
 
   const totalPorSimulado = new Map<number, number>()
@@ -51,6 +52,11 @@ export default async function SimuladosPage() {
             const melhorNota = finalizadas.length
               ? Math.max(...finalizadas.map((t) => Number(t.nota ?? 0)))
               : null
+            const alvoLiberacao = instanteDeLiberacao(numero, perfil?.primeiro_login_em ?? null)
+            // Decidido aqui (Server Component) via helper puro, não com um
+            // Date.now() direto no corpo do componente — o React Compiler proíbe
+            // chamar função impura durante o render, mesmo em Server Component.
+            const bloqueadoPorTempo = !simuladoLiberado(numero, perfil?.primeiro_login_em ?? null)
 
             return (
               <CartaoSimulado
@@ -60,6 +66,8 @@ export default async function SimuladosPage() {
                 totalQuestoes={totalPorSimulado.get(numero) ?? 0}
                 emAndamento={doSimulado.some((t) => t.status === 'em_andamento')}
                 melhorNota={melhorNota}
+                bloqueadoPorTempo={bloqueadoPorTempo}
+                liberaEm={alvoLiberacao ? alvoLiberacao.toISOString() : null}
               />
             )
           })}

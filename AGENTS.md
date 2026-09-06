@@ -204,8 +204,17 @@ inteiro:
    perder a sessão não perde progresso — o aluno só digita o e-mail no `/login`
    de novo e recebe uma sessão nova para a mesma conta.
 
-**`acesso_liberado_em` é a única fonte de verdade de acesso**, e só o webhook
-escreve nela. Isso é reforçado em duas camadas:
+**`acesso_liberado_em` é a única fonte de verdade de acesso.** Na operação
+normal só o webhook escreve nela; a única exceção é
+`scripts/liberar-acesso-manual.mjs`, que concede acesso administrativo (ex.:
+o próprio Carlos) sem passar pela Lowify, usando o mesmo mecanismo do
+webhook (`createUser` + `acesso_liberado_em`). Toda conta liberada assim
+também recebe `usuarios.acesso_manual_em`, e o webhook confere essa marca
+antes de revogar num reembolso/chargeback/cancelamento — uma conta manual
+nunca cai, mesmo que o e-mail apareça num payload de reembolso. Não existe
+lista de e-mails admin no frontend nem no client-side: a única diferença
+entre uma conta manual e uma compradora normal é essa coluna, lida só no
+servidor. Isso é reforçado em duas camadas:
 
 - **A tela de acesso** só monta sessão se ela estiver marcada — nunca cria
   conta, isso é papel exclusivo do webhook.

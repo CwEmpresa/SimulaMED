@@ -8,6 +8,43 @@ export const CRITICO_SEGUNDOS = 5 * 60
 export const SIMULADOS = [1, 2, 3] as const
 export type NumeroSimulado = (typeof SIMULADOS)[number]
 
+/**
+ * Horas após o primeiro login em que cada simulado se libera — pacing para o
+ * aluno não fazer os três de uma vez. Simulado 1 é sempre livre (0h).
+ */
+export const HORAS_LIBERACAO: Record<NumeroSimulado, number> = {
+  1: 0,
+  2: 12,
+  3: 24,
+}
+
+/**
+ * Instante em que um simulado se libera, a partir do primeiro login real do
+ * aluno (`usuarios.primeiro_login_em`, marcado só pelo servidor em
+ * `entrarComEmail`). `null` quando ainda não há primeiro login registrado —
+ * não deveria acontecer para quem já está autenticado, mas nesse caso o
+ * simulado fica liberado (falha aberta: não é uma defesa de segurança, é só
+ * ritmo de estudo, e travar o aluno para sempre por falta de dado seria pior).
+ */
+export function instanteDeLiberacao(
+  numero: number,
+  primeiroLoginEm: string | null,
+): Date | null {
+  if (!primeiroLoginEm) return null
+  const horas = HORAS_LIBERACAO[numero as NumeroSimulado] ?? 0
+  if (horas <= 0) return null
+  return new Date(new Date(primeiroLoginEm).getTime() + horas * 3600 * 1000)
+}
+
+export function simuladoLiberado(
+  numero: number,
+  primeiroLoginEm: string | null,
+  agora: number = Date.now(),
+): boolean {
+  const alvo = instanteDeLiberacao(numero, primeiroLoginEm)
+  return alvo === null || agora >= alvo.getTime()
+}
+
 export const ALTERNATIVAS = ['A', 'B', 'C', 'D'] as const
 export type Alternativa = (typeof ALTERNATIVAS)[number]
 
