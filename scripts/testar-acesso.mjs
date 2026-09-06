@@ -46,6 +46,7 @@ const EMAIL_COMPRADOR_2 = `teste-acesso-formato-alt-${SUFIXO}@example.com`
 const EMAIL_COMPRADOR_3 = `teste-acesso-query-${SUFIXO}@example.com`
 const EMAIL_ACESSO_MANUAL = `teste-acesso-manual-${SUFIXO}@example.com`
 const EMAIL_SEGREDO_NO_CORPO = `teste-acesso-corpo-${SUFIXO}@example.com`
+const EMAIL_FORMATO_REAL = `teste-formato-real-${SUFIXO}@example.com`
 
 async function chamarWebhook(payload, { querystring } = {}) {
   const url = querystring
@@ -318,6 +319,55 @@ try {
     'compras.payload_bruto NÃO contém o segredo em texto puro',
   )
   checar(brutoGravado.includes('[redigido]'), 'o campo do segredo foi mascarado, não removido silenciosamente')
+
+  console.log('\n15. Formato real confirmado da Lowify (sale_id / customer.email / product.name)')
+  const saleIdReal = `ord_teste_formato_real_${SUFIXO}`
+  const respostaFormatoReal = await chamarWebhook({
+    event: 'sale.paid',
+    is_test: true,
+    product: { id: 0, name: 'Produto de Teste' },
+    sale_id: saleIdReal,
+    customer: { name: 'Cliente Teste', email: EMAIL_FORMATO_REAL, phone: '11999999999' },
+    tracking: { click_id: 'click_test', utm_source: 'test', campaign_id: 'campaign_test' },
+    timestamp: '2026-09-06 03:03:47',
+  })
+  checar(respostaFormatoReal.ok, 'webhook aceita o formato real confirmado em produção')
+
+  const { data: compraFormatoReal } = await admin
+    .from('compras')
+    .select('evento_id, produto, status, usuario_id')
+    .eq('evento_id', saleIdReal)
+    .maybeSingle()
+  checar(compraFormatoReal?.evento_id === saleIdReal, 'sale_id vira evento_id (não cai no fallback de hash)')
+  checar(compraFormatoReal?.produto === 'Produto de Teste', 'product.name é extraído explicitamente')
+  checar(compraFormatoReal?.status === 'pago', '"sale.paid" é interpretado como pago')
+
+  const { data: usuarioFormatoReal } = await admin
+    .from('usuarios')
+    .select('id, acesso_liberado_em')
+    .eq('email', EMAIL_FORMATO_REAL)
+    .maybeSingle()
+  checar(
+    !!usuarioFormatoReal?.id && usuarioFormatoReal.id === compraFormatoReal?.usuario_id,
+    'customer.email cria a conta e vincula à compra',
+  )
+  checar(!!usuarioFormatoReal?.acesso_liberado_em, 'acesso_liberado_em foi marcada')
+
+  const respostaFormatoRealReembolso = await chamarWebhook({
+    event: 'sale.refunded',
+    sale_id: `${saleIdReal}-reembolso`,
+    customer: { email: EMAIL_FORMATO_REAL },
+  })
+  checar(respostaFormatoRealReembolso.ok, 'webhook aceita "sale.refunded" no mesmo formato')
+  const { data: usuarioFormatoRealDepois } = await admin
+    .from('usuarios')
+    .select('acesso_liberado_em')
+    .eq('email', EMAIL_FORMATO_REAL)
+    .maybeSingle()
+  checar(
+    !usuarioFormatoRealDepois?.acesso_liberado_em,
+    '"sale.refunded" revoga acesso_liberado_em (via casamento de palavra-chave, "refunded" ainda não confirmado)',
+  )
 } finally {
   const emails = [
     EMAIL_COMPRADOR,
@@ -326,6 +376,7 @@ try {
     EMAIL_COMPRADOR_3,
     EMAIL_ACESSO_MANUAL,
     EMAIL_SEGREDO_NO_CORPO,
+    EMAIL_FORMATO_REAL,
   ]
   for (const email of emails) {
     await admin.from('acesso_tentativas').delete().eq('email', email)

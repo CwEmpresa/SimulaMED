@@ -238,19 +238,31 @@ sem e-mail → sessão montada → RLS da sessão → reembolso revoga → reent
 mesmo evento não duplica). Precisa do `npm run dev` rodando (bate de verdade
 em `/api/webhooks/lowify`) e do mesmo `LOWIFY_WEBHOOK_SECRET` do `.env.local`.
 
-Não existe documentação pública da Lowify (já busquei), então
-`src/lib/lowify.ts` (`interpretarEventoLowify`) não aposta num único formato
-de campo: varre o payload inteiro por palavra-chave (aprovado/reembolsado/
-chargeback/cancelado, em várias línguas e formatos) e por formato (e-mail
-reconhecido pelo `@`), em vez de nomes de chave fixos — tolerante a payload
-desconhecido, mas ainda não confirmado contra um payload real. `evento_id`
-cai para um hash do corpo quando nenhum campo parece um id, então a
-idempotência não depende de acertar o nome do campo. A verificação de
-assinatura (`assinaturaValida`) aceita as três formas mais comuns (header
-configurável por `LOWIFY_WEBHOOK_HEADER`, query string `?token=`/`?secret=`,
-ou campo no corpo) — a primeira que bater autentica. Se um payload real cair
-e vier `payload_nao_reconhecido`, o log do handler mostra o corpo bruto
-inteiro; é só ajustar as listas de chaves em `src/lib/lowify.ts`.
+Não existe documentação pública da Lowify (já busquei), mas o formato real já
+foi confirmado em produção: um teste disparado do próprio painel da Lowify em
+2026-09-06 chegou como `{ event: "sale.paid", sale_id, customer: { email },
+product: { name } }`. `src/lib/lowify.ts` (`interpretarEventoLowify`) trata
+esse formato explicitamente primeiro (`interpretarFormatoConhecido`) e só cai
+no scanner tolerante antigo (varre o payload inteiro por palavra-chave e por
+formato de e-mail, em vez de nomes de chave fixos) quando o payload não bate
+com o formato conhecido — uma mudança futura da Lowify, ou uma origem
+diferente. O status ainda usa casamento por palavra-chave em ambos os
+caminhos (aprovado/reembolsado/chargeback/cancelado, em várias línguas): só
+`sale.paid` foi confirmado até agora, os outros três (reembolso, chargeback,
+cancelamento) continuam por confirmar contra um evento real de cada um.
+`evento_id` cai para um hash do corpo quando nenhum campo parece um id
+(`sale_id` no formato conhecido), então a idempotência não depende de acertar
+o nome do campo. A verificação de assinatura (`assinaturaValida`) aceita as
+três formas mais comuns (header configurável por `LOWIFY_WEBHOOK_HEADER`,
+query string `?token=`/`?secret=`, ou campo no corpo) — a primeira que bater
+autentica; **nunca** logar nem persistir o payload sem passar por
+`sanitizarPayload`/`sanitizarTextoBruto` primeiro, que mascaram esse mesmo
+campo de segredo quando ele vem pelo corpo (já foi um vazamento real: o
+segredo ficava em texto puro em `compras.payload_bruto` e no log de
+`payload_nao_reconhecido`). Se um payload real ainda não reconhecido cair e
+vier `payload_nao_reconhecido`, o log do handler mostra o corpo bruto
+(sanitizado); é só ajustar `interpretarFormatoConhecido` ou as listas de
+chaves do scanner tolerante em `src/lib/lowify.ts`.
 
 **Toggle manual pendente:** desativar cadastro/OTP público em Supabase
 Dashboard → Authentication → Sign In / Providers → Email (ou "Allow new user

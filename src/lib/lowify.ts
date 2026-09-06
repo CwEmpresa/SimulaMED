@@ -4,19 +4,30 @@ import { createHash, timingSafeEqual } from 'node:crypto'
  * Adaptador entre o payload bruto do webhook da Lowify e o formato que
  * `compras` espera.
  *
- * ATENÇÃO: não existe documentação pública da Lowify (busquei) nem um
- * payload de exemplo real neste projeto. Em vez de apostar num único
- * conjunto fixo de nomes de campo, este adaptador varre o payload inteiro
- * (chaves conhecidas de várias plataformas de checkout brasileiras -
- * Hotmart/Kiwify/Eduzz/Monetizze - e depois por palavra-chave/formato) e
- * pega o primeiro valor plausível para cada campo. Isso é deliberadamente
- * tolerante: o objetivo é não quebrar por causa de uma maiúscula ou um nome
- * de chave diferente do esperado, mesmo sem saber o formato real ainda.
+ * FORMATO REAL CONFIRMADO em 2026-09-06 (evento de teste disparado do próprio
+ * painel da Lowify, `sale_id: "ord_test_..."`, chegou em produção e foi
+ * processado com sucesso):
  *
- * Quando o payload real existir, o mais provável é que isto já funcione
- * sem mudança nenhuma — mas se `interpretarEventoLowify` devolver `null`
- * para um payload de verdade, o handler loga o payload bruto inteiro
- * (ver route.ts), e é só ler esse log pra ver o que ajustar aqui.
+ *   {
+ *     "event": "sale.paid",
+ *     "is_test": true,
+ *     "product": { "id": 0, "name": "Produto de Teste" },
+ *     "sale_id": "ord_test_6a9d024301745",
+ *     "customer": { "name": "Cliente Teste", "email": "...", "phone": "..." },
+ *     "tracking": { "click_id": "...", "utm_source": "...", "campaign_id": "..." },
+ *     "timestamp": "2026-09-06 03:03:47"
+ *   }
+ *
+ * `interpretarFormatoConhecido` reconhece esse formato explicitamente (id da
+ * venda em `sale_id`, e-mail em `customer.email`, produto em `product.name`)
+ * — é checado primeiro. Só cai no scanner tolerante abaixo (herdado de antes
+ * de existir um payload real: varre o objeto inteiro por chaves conhecidas de
+ * várias plataformas de checkout brasileiras, depois por palavra-chave/
+ * formato) quando o payload não bate com esse formato — uma mudança futura da
+ * Lowify, ou uma origem diferente. O status ainda usa o mesmo casamento por
+ * palavra-chave em ambos os caminhos: só vimos `sale.paid` até agora, e
+ * hardcodar um valor exato para reembolso/cancelamento/chargeback sem nunca
+ * ter visto o payload real de nenhum deles seria apostar, não confirmar.
  */
 export type EventoLowify = {
   eventoId: string
@@ -116,6 +127,40 @@ function buscarStatus(pares: Array<{ chave: string; valor: string }>): EventoLow
   return undefined
 }
 
+/**
+ * Formato real confirmado (ver comentário do arquivo): `sale_id` na raiz,
+ * `customer.email`, `product.name` e `event` como string tipo "sale.paid".
+ * Devolve `null` (sem lançar) quando o payload não bate com esse formato —
+ * é o sinal para `interpretarEventoLowify` cair no scanner tolerante.
+ */
+function interpretarFormatoConhecido(payload: Record<string, unknown>): EventoLowify | null {
+  const saleId = payload.sale_id
+  const evento = payload.event
+  const cliente = payload.customer
+
+  const email =
+    typeof cliente === 'object' && cliente !== null && typeof (cliente as { email?: unknown }).email === 'string'
+      ? ((cliente as { email: string }).email)
+      : undefined
+
+  if (typeof saleId !== 'string' || saleId.trim() === '') return null
+  if (typeof evento !== 'string') return null
+  if (!email || email.trim() === '') return null
+
+  const status = PALAVRAS_CHAVE_STATUS.find(([padrao]) => padrao.test(normalizarTexto(evento)))?.[1]
+  if (!status) return null
+
+  const produtoObj = payload.product ?? payload.produto
+  const produto =
+    typeof produtoObj === 'object' &&
+    produtoObj !== null &&
+    typeof (produtoObj as { name?: unknown }).name === 'string'
+      ? (produtoObj as { name: string }).name
+      : null
+
+  return { eventoId: saleId, email: email.trim().toLowerCase(), produto, status }
+}
+
 /** Devolve `null` quando o payload não tem e-mail nem status reconhecíveis —
  * o handler registra o payload bruto e recusa o evento em vez de adivinhar
  * o que fazer. `eventoId` sempre existe: cai para um hash do payload quando
@@ -123,6 +168,9 @@ function buscarStatus(pares: Array<{ chave: string; valor: string }>): EventoLow
  * sem saber o nome real do campo de id. */
 export function interpretarEventoLowify(payload: unknown): EventoLowify | null {
   if (typeof payload !== 'object' || payload === null) return null
+
+  const conhecido = interpretarFormatoConhecido(payload as Record<string, unknown>)
+  if (conhecido) return conhecido
 
   const pares = coletarPares(payload)
 
