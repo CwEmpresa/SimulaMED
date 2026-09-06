@@ -45,6 +45,7 @@ const EMAIL_SEM_COMPRA = `teste-sem-compra-${SUFIXO}@example.com`
 const EMAIL_COMPRADOR_2 = `teste-acesso-formato-alt-${SUFIXO}@example.com`
 const EMAIL_COMPRADOR_3 = `teste-acesso-query-${SUFIXO}@example.com`
 const EMAIL_ACESSO_MANUAL = `teste-acesso-manual-${SUFIXO}@example.com`
+const EMAIL_SEGREDO_NO_CORPO = `teste-acesso-corpo-${SUFIXO}@example.com`
 
 async function chamarWebhook(payload, { querystring } = {}) {
   const url = querystring
@@ -292,8 +293,40 @@ try {
     `(veio ${usuarioManualDepois?.acesso_liberado_em})`,
   )
   checar(!!usuarioManualDepois?.acesso_manual_em, 'acesso_manual_em continua marcada depois do evento')
+
+  console.log('\n14. Segredo enviado dentro do corpo é aceito, mas nunca fica gravado em texto puro')
+  const respostaSegredoNoCorpo = await fetch(`${BASE_URL}/api/webhooks/lowify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      id: `evt-teste-corpo-${SUFIXO}`,
+      event: 'aprovado',
+      token: SEGREDO_WEBHOOK,
+      data: { email: EMAIL_SEGREDO_NO_CORPO },
+    }),
+  })
+  checar(respostaSegredoNoCorpo.ok, 'webhook aceita o segredo enviado dentro do corpo')
+
+  const { data: compraComSegredoNoCorpo } = await admin
+    .from('compras')
+    .select('payload_bruto')
+    .eq('evento_id', `evt-teste-corpo-${SUFIXO}`)
+    .maybeSingle()
+  const brutoGravado = JSON.stringify(compraComSegredoNoCorpo?.payload_bruto ?? {})
+  checar(
+    !brutoGravado.includes(SEGREDO_WEBHOOK),
+    'compras.payload_bruto NÃO contém o segredo em texto puro',
+  )
+  checar(brutoGravado.includes('[redigido]'), 'o campo do segredo foi mascarado, não removido silenciosamente')
 } finally {
-  const emails = [EMAIL_COMPRADOR, EMAIL_SEM_COMPRA, EMAIL_COMPRADOR_2, EMAIL_COMPRADOR_3, EMAIL_ACESSO_MANUAL]
+  const emails = [
+    EMAIL_COMPRADOR,
+    EMAIL_SEM_COMPRA,
+    EMAIL_COMPRADOR_2,
+    EMAIL_COMPRADOR_3,
+    EMAIL_ACESSO_MANUAL,
+    EMAIL_SEGREDO_NO_CORPO,
+  ]
   for (const email of emails) {
     await admin.from('acesso_tentativas').delete().eq('email', email)
     const { data: usuario } = await admin.from('usuarios').select('id').eq('email', email).maybeSingle()

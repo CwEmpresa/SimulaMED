@@ -142,6 +142,40 @@ export function interpretarEventoLowify(payload: unknown): EventoLowify | null {
   }
 }
 
+/** Mesmas chaves aceitas por `assinaturaValida` para o segredo no corpo —
+ * únicas que precisam ser mascaradas antes de logar ou persistir o payload. */
+const CHAVES_SECRETAS = new Set(['token', 'secret', 'webhooksecret'])
+
+/**
+ * Mascara qualquer campo do payload cuja chave (normalizada) seja uma das
+ * usadas para autenticar o webhook pelo corpo. Sem isso, um payload
+ * autenticado via `{ "token": "..." }` vazaria o próprio segredo compartilhado
+ * no log de `payload_nao_reconhecido` e na coluna `compras.payload_bruto` —
+ * ambos persistem o payload inteiro, e um segredo em texto puro num log ou
+ * numa tabela é exatamente o tipo de exposição que a assinatura devia evitar.
+ */
+export function sanitizarPayload(valor: unknown): unknown {
+  if (Array.isArray(valor)) return valor.map(sanitizarPayload)
+  if (typeof valor === 'object' && valor !== null) {
+    const saida: Record<string, unknown> = {}
+    for (const [chave, v] of Object.entries(valor)) {
+      saida[chave] = CHAVES_SECRETAS.has(normalizarChave(chave)) ? '[redigido]' : sanitizarPayload(v)
+    }
+    return saida
+  }
+  return valor
+}
+
+/**
+ * Mesma mascara para o caso raro de JSON.parse falhar: o corpo bruto não
+ * parseado ainda pode conter `"token":"..."` ou `token=...` de propósito
+ * (form-encoded), então o log do erro de parsing precisa da própria versão
+ * em texto do mesmo cuidado acima.
+ */
+export function sanitizarTextoBruto(texto: string): string {
+  return texto.replace(/(["']?(?:token|secret|webhook_?secret)["']?\s*[:=]\s*)["']?[^"',&\s}]*["']?/gi, '$1[redigido]')
+}
+
 /**
  * Confere o segredo compartilhado com a Lowify. Sem saber o esquema real,
  * aceita as três formas mais comuns entre plataformas de checkout

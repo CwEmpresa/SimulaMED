@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-import { assinaturaValida, interpretarEventoLowify } from '@/lib/lowify'
+import { assinaturaValida, interpretarEventoLowify, sanitizarPayload, sanitizarTextoBruto } from '@/lib/lowify'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Json } from '@/lib/supabase/types'
 
@@ -33,7 +33,11 @@ const STATUS_REVOGA_ACESSO = new Set(['reembolsado', 'chargeback', 'cancelado'])
  * exemplo real. `interpretarEventoLowify` varre o payload por palavra-chave
  * em vez de nomes de campo fixos — bem mais tolerante a formato desconhecido
  * — mas se um payload real cair aqui e vier `payload_nao_reconhecido`, o log
- * abaixo mostra o corpo bruto inteiro, e é só ajustar as listas de chaves em
+ * abaixo mostra o corpo bruto (sanitizado — ver `sanitizarPayload` em
+ * src/lib/lowify.ts, que mascara `token`/`secret`/`webhook_secret` antes de
+ * logar ou gravar em `compras.payload_bruto`, para o segredo compartilhado
+ * nunca acabar em texto puro num log ou numa linha da tabela quando a
+ * autenticação vier pelo corpo), e é só ajustar as listas de chaves em
  * src/lib/lowify.ts.
  */
 export async function POST(request: Request) {
@@ -48,7 +52,7 @@ export async function POST(request: Request) {
   try {
     payload = textoBruto ? JSON.parse(textoBruto) : null
   } catch {
-    console.error('Payload da Lowify não é JSON válido:', textoBruto.slice(0, 2000))
+    console.error('Payload da Lowify não é JSON válido:', sanitizarTextoBruto(textoBruto.slice(0, 2000)))
     return NextResponse.json({ erro: 'payload_invalido' }, { status: 400 })
   }
 
@@ -58,7 +62,10 @@ export async function POST(request: Request) {
 
   const evento = interpretarEventoLowify(payload)
   if (!evento) {
-    console.error('Payload da Lowify não reconhecido pelo adaptador:', JSON.stringify(payload))
+    console.error(
+      'Payload da Lowify não reconhecido pelo adaptador:',
+      JSON.stringify(sanitizarPayload(payload)),
+    )
     return NextResponse.json({ erro: 'payload_nao_reconhecido' }, { status: 422 })
   }
 
@@ -93,7 +100,10 @@ export async function POST(request: Request) {
       produto: evento.produto,
       status: evento.status,
       usuario_id: usuarioId,
-      payload_bruto: payload,
+      // Sanitizado: se a autenticação veio por um campo no corpo (token/
+      // secret/webhook_secret), o segredo compartilhado não fica gravado em
+      // texto puro numa tabela que qualquer leitura com service_role acessa.
+      payload_bruto: sanitizarPayload(payload) as Json,
     },
     { onConflict: 'evento_id' },
   )
